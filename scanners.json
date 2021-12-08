@@ -1,0 +1,21 @@
+{
+    "current": "97",
+    "url": {
+        "1": "https://api.etherscan.io/api",
+        "4": "https://api-rinkeby.etherscan.io/api",
+        "5": "https://api-goerli.etherscan.io/api",
+        "56": "https://api.bscscan.com/api",
+        "97": "https://api-testnet.bscscan.com/api",
+        "137": "https://api.polygonscan.com/api",
+        "80001": "https://api-testnet.polygonscan.com/api"
+    },
+    "apikey": {
+        "1": "9IKRN66FXBYZZETKF9MSTV5SP46MPH7IU3",
+        "4": "9IKRN66FXBYZZETKF9MSTV5SP46MPH7IU3",
+        "5": "9IKRN66FXBYZZETKF9MSTV5SP46MPH7IU3",
+        "56": "SEAZASBV3QF4AYSJW1SP4DABHPE4GIR9WI",
+        "97": "SEAZASBV3QF4AYSJW1SP4DABHPE4GIR9WI",
+        "137": "PMJKYWY72ZWBGP2YVU2KGE72WSK3TB8ERU",
+        "80001": "PMJKYWY72ZWBGP2YVU2KGE72WSK3TB8ERU"
+    }
+}
