@@ -20,10 +20,10 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
     bool private _isAntiBotInitialized;
 
     mapping(address => bool) public whitelisted;
-    mapping(address => bool) public blacklisted;
 
     function initialize() public initializer {
         cap = 500000000 ether;
+        _maxBalanceWhenAntiBot = 10000 ether;
         __ERC20_init("MPOLY Token", "MPOLY");
         __ERC20Snapshot_init();
         __AccessControlProxyPausable_init(msg.sender);
@@ -81,6 +81,7 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
     }
 
     function setAntiBotMaxBalance(uint256 _max) external onlyRole(ANTIBOT_ROLE) {
+        require(_max >= 10000 ether, "MonstropolyERC20: max must be >= 10k");
         _maxBalanceWhenAntiBot = _max;
     }
 
@@ -96,32 +97,13 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
         }
     }
 
-    function blacklist(address[] calldata _list) external onlyRole(ANTIBOT_ROLE) {
-        for(uint256 i; i <_list.length; i++) {
-            blacklisted[_list[i]] = true;
-        }
-    }
-
-    function unblacklist(address[] calldata _list) external onlyRole(ANTIBOT_ROLE) {
-        for(uint256 i; i <_list.length; i++) {
-            blacklisted[_list[i]] = false;
-        }
-    }
-
     function _beforeTokenTransfer(address from, address to, uint256 amount)
         internal
         whenNotPaused
         override(ERC20Upgradeable, ERC20SnapshotUpgradeable)
     {
-        _checkBlacklist(to);
         _antiBotMaxBalance(to, amount);
         super._beforeTokenTransfer(from, to, amount);
-    }
-
-    function _checkBlacklist(address _addr) internal view {
-        if (_isAntibot) {
-            require(!blacklisted[_addr], "MonstropolyERC20: Blacklist for antibot");
-        }
     }
 
     function _antiBotMaxBalance(address _addr, uint256 _amount) internal view {
