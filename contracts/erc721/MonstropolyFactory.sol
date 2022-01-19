@@ -66,6 +66,8 @@ contract MonstropolyFactory is
 
     uint256 public createdAt;
 
+    event Mint(address indexed from, address indexed to, uint256 indexed tokenId, string genetic);
+
     /**
      * @dev Grants `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE` and `PAUSER_ROLE` to the
      * account that deploys the contract.
@@ -125,6 +127,9 @@ contract MonstropolyFactory is
         _allHeroes[tokenId] = hero;
         _heroesId.push(tokenId);
         _tokenIdTracker.increment();
+
+        emit Mint(address(0), to, tokenId, genes);
+
         return tokenId;
     }
     function heroeOfId(uint256 tokenId) public view returns(Hero memory) { 

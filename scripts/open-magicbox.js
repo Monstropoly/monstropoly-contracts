@@ -5,12 +5,12 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const MAGIC_BOXES_ADDR = '0xbaEa13191bD4D5a4e3521E6Ba1B0Db2742dE3AC6'
-const FACTORY_ADDR = '0xa1546DE9787d9d28f29F3A2A44999fECf855442D'
+const MAGIC_BOXES_ADDR = '0x44E7f995bc37be0d27102a063c52f6e03A52DA3C'
+const FACTORY_ADDR = '0x39C296E7046c27B3cfEF8514D368bA1aE8558399'
 const MPOLY_ADDR = '0x6a4e41E9114B4E5528bE8C34f95a4F3134c903C7'
-const RELAYER_ADDR = '0x27E1d064f486e900B3bfFb0f7Db10B8405D2F4cC'
-const PAYMASTER_ADDR = '0x900341a0Cd51e1e102808a1C5316776781D616fD'
-const GENSCIENCE_ADDR = '0xf99d171A863502BFbB003A09F141c7DD03781aA6'
+const RELAYER_ADDR = '0x7D86C5D294BDC06aD9d5075Cc7F77BD802A80308'
+const PAYMASTER_ADDR = '0x67fFB0916204a85be70115D0DA03E6DB275139DA'
+const GENSCIENCE_ADDR = '0x6aaa80b4eE5d0901ea3092BB11fe50636a9f5e83'
 
 const ASSET = 0 // 0-Character 1-Weapon. The asset you want to open
 const VIP = false // Is your asset from a VIP box?
@@ -83,7 +83,7 @@ async function main() {
         from: user.address,
         to: MAGIC_BOXES_ADDR,
         value: 0,
-        gas: 3000000, //ToDo: estimate gas for this, not ready
+        gas: 2000000, //ToDo: estimate gas for this, not ready
         nonce: nonce,
         data: openData,
         validUntil: 0
@@ -95,10 +95,30 @@ async function main() {
 
     /*** USER ENDS */
 
+    // POST req including value object (needed to verify signature) and signature
+
     /*** BACKEND */
 
+    // Check signature to be sure value.to = MAGIC_BOXES_ADDR
+    const signer = ethers.utils.verifyTypedData(domain, types, value, signature) //we already know domain and types objs, dont need it in POST
+    if ((signer.toLowerCase() == value.from.toLowerCase()) && (value.to == MAGIC_BOXES_ADDR)) {
+        console.log('Valid signature!')
+    }
+
     const length = 'asset-type--raritystat0-stat1-stat2-stat3-attr0-attr1-attr2-attr3-attr4-attr5-attr6-attr7-attr8-colorRcolorGcolorBcolorA' // not used
-    const RANDOM = '740098223409078271829384132948734346321498890831874398135738a78741832983748391111b11110001111111987654987654987654987654' //modify manually !!!
+    const RANDOM = '740098223409078271829384132948734346221498890831874398135738378741832983748391141ab1110001132451987654987654987654987654' //modify manually !!!
+
+    // Check if new gen (obtained from gen) is free.
+    const genObj = await scienceContract.generateAssetView(ASSET, RANDOM, VIP)
+    const gen = genObj.gen_ //Note gen != RANDOM in ASSET.random and RARITY.random fields as contract needs to set this in accordance to case
+    
+    if (genObj.free_ == true) {
+        console.log('New gen is free!')
+        console.log(gen)
+    } else {
+        console.log('Gen exists, generate a new random')
+    }
+
     const wrappData = scienceContract.interface.encodeFunctionData('setRandom', [RANDOM])
     relayerContract = relayerContract.connect(backend)
     const response = await relayerContract.callAndRelay(wrappData, GENSCIENCE_ADDR, value, signature)
