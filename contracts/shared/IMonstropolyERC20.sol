@@ -12,4 +12,5 @@ interface IMonstropolyERC20 {
     function burn(uint256 amount) external;
     function burnFrom(address account, uint256 amount) external;
     function mint(address to, uint256 amount) external;
+    function cap() external view returns (uint256);
 }

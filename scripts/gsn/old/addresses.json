@@ -1,0 +1,6 @@
+{
+    "relayHub": "0x6650d69225CA31049DB7Bd210aE4671c0B1ca132",
+    "forwarder": "0x83A54884bE4657706785D7309cf46B58FE5f6e8a",
+    "paymaster": "0xA6e10aA9B038c9Cddea24D2ae77eC3cE38a0c016",
+    "contract": "0xD781fe19c0B5941D9B3B9cD95b52b73E5cb41192"
+}

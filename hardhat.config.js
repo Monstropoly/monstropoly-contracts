@@ -5,6 +5,7 @@ require('@nomiclabs/hardhat-truffle5')
 require('@nomiclabs/hardhat-etherscan')
 require('@openzeppelin/hardhat-upgrades')
 require('hardhat-gas-reporter')
+require("solidity-coverage")
 const { random, template } = require('lodash')
 const GAS_PRICE_DEFAULT = 10000000000
 const GAS_MULTIPLIER_DEFAULT = 1
