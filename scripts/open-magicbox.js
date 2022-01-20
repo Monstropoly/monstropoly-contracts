@@ -106,7 +106,15 @@ async function main() {
     }
 
     const length = 'asset-type--raritystat0-stat1-stat2-stat3-attr0-attr1-attr2-attr3-attr4-attr5-attr6-attr7-attr8-colorRcolorGcolorBcolorA' // not used
-    const RANDOM = '740098223409078271829384132948734346221498890831874398135738378741832983748391141ab1110001132451987654987654987654987654' //modify manually !!!
+    const RANDOM = '74009822340907827182938413294873434622149889083187439813573837874ee32983a48391141ab1110001132451987654987654987654987654' //modify manually !!!
+
+    // Decode openData to get ASSET and VIP
+    const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('open', value.data)
+    const _asset = decodedOpenData.asset
+    const _vip = decodedOpenData.vip
+
+    // Check signer balance to prevent failed TXs
+    const _boxBalance = await magicBoxesContract.balances(signer, _vip, _asset)
 
     // Check if new gen (obtained from gen) is free.
     const genObj = await scienceContract.generateAssetView(ASSET, RANDOM, VIP)
@@ -126,13 +134,18 @@ async function main() {
     const receipt = await response.wait()
     // const receipt = await ethers.provider.getTransactionReceipt(response.hash) //that's how you can do it in frontend
 
-    let log = receipt.logs.find(x => x.address.toLowerCase() === FACTORY_ADDR.toLowerCase())
-    let transferEvent = factoryContract.interface.parseLog(log)
+    let logs = receipt.logs.filter(x => x.address.toLowerCase() === FACTORY_ADDR.toLowerCase())
+    logs.forEach(async(log) => {
+        let transferEvent = factoryContract.interface.parseLog(log)
 
-    console.log('Transfer event')
-    console.log('    From: ', transferEvent.args.from)
-    console.log('    To: ', transferEvent.args.to)
-    console.log('    TokenID: ', transferEvent.args.tokenId.toString())
+        if (transferEvent.args.genetic != undefined) {
+            console.log('Mint event')
+            console.log('    From: ', transferEvent.args.from)
+            console.log('    To: ', transferEvent.args.to)
+            console.log('    TokenID: ', transferEvent.args.tokenId.toString())
+            console.log('    Genetic: ', transferEvent.args.genetic)
+        }
+    })
 
     /*** BACKEND ENDS */
 }
