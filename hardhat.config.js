@@ -114,6 +114,13 @@ module.exports = {
       gasPrice: GAS_PRICE_DEFAULT,
       gasMultiplier: GAS_MULTIPLIER_DEFAULT,
       accounts: { mnemonic: process.env.MNEMONIC }
+    },
+    hardhat: {
+      chainId: 31337,
+      forking: {
+        url: 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+      },
+      accounts: { mnemonic: process.env.MNEMONIC }
     }
   },
   // This is a sample solc configuration that specifies which version of solc to use
