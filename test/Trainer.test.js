@@ -18,8 +18,8 @@ const FACTORY_ID = ethers.utils.id('FACTORY')
 const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const SALT =   '748398223409078271829384132948734346321065890831874398135738578741832983748391111111111111111111987654987654987654987654'
-const SALT2 =  '748398223409078271829385132948734346321065890831874398135738578741832983748391111111111111111111987654987654987654987654'
+const SALT =   '7398223409078271938413294434630051289083187439813573857874183298374811111111987654987654987654987654'
+const SALT2 =  '7398223409078271938513294434630051289083187439813573857874183298374811111111987654987654987654987654'
 
 
 describe('Trainer', function () {
@@ -45,7 +45,8 @@ describe('Trainer', function () {
         const dataImpl = await Data.deploy();
         await myDeployer.deployProxyWithImplementation(DATA_ID, dataImpl.address, calldataData)
         await myDeployer.deploy(SCIENCE_ID, GenScience.bytecode, calldataData)
-        await myDeployer.deploy(FACTORY_ID, Factory.bytecode, calldataData)
+        const factoryImpl = await Factory.deploy();
+        await myDeployer.deployProxyWithImplementation(FACTORY_ID, factoryImpl.address, calldataData)
         await myDeployer.deploy(TRAINER_ID, Trainer.bytecode, calldataData)
         await myDeployer.deploy(ERC20_ID, ERC20.bytecode, calldataData)
 
@@ -178,8 +179,8 @@ describe('Trainer', function () {
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.heroeOfId('0')
-            const hero1 = await myFactory.heroeOfId('1')
+            const hero0 = await myFactory.tokenOfId('0')
+            const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
             const stat0 = dec0._stats[statIndex].random % dec0._stats[statIndex].module
@@ -208,8 +209,8 @@ describe('Trainer', function () {
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.heroeOfId('0')
-            const hero1 = await myFactory.heroeOfId('1')
+            const hero0 = await myFactory.tokenOfId('0')
+            const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
             const stat0 = dec0._stats[statIndex].random % dec0._stats[statIndex].module
@@ -238,8 +239,8 @@ describe('Trainer', function () {
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.heroeOfId('0')
-            const hero1 = await myFactory.heroeOfId('1')
+            const hero0 = await myFactory.tokenOfId('0')
+            const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
             const stat0 = dec0._stats[statIndex].random % dec0._stats[statIndex].module
@@ -268,8 +269,8 @@ describe('Trainer', function () {
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.heroeOfId('0')
-            const hero1 = await myFactory.heroeOfId('1')
+            const hero0 = await myFactory.tokenOfId('0')
+            const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
             const stat0 = dec0._stats[statIndex].random % dec0._stats[statIndex].module

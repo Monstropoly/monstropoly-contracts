@@ -45,8 +45,9 @@ let accounts
 
 const BNB_PRICE = "50000000000"
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
-const RANDOM =  '748398223409078271829384132948734346321498890831874398135738578741832983748391111111111111111111987654987654987654987654'
-const RANDOM1 = '748398223409078271829384132948734346321498890831874398135738578741832983748398134791348010684586001613748386163847501638'
+const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
+const RANDOM =  '7483982234090782718293841329487343463214988908318743981357385787418329837483911111111111111111119876'
+const RANDOM1 = '7483982234090782718293841329487343463214988908318743981357385787418329837483981347913480163847501638'
 
 describe('MonstropolyMagicBoxesShop', function () {
 	let owner, person, person2
@@ -57,6 +58,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 		owner = accounts[0]
 		person = accounts[1]
 		person2 = accounts[2]
+		team = accounts[3]
 
 		const whitelistArray = [
 			owner.address,
@@ -96,6 +98,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 		myScience = await Science.at(science)
 
 		await myDeployer.grantRole(MINTER_ROLE, myMagicBoxes.address);
+        await myDeployer.setId(TREASURY_WALLET, team.address)
 
 		myUniswapFactory = await UniswapFactory.new(owner.address)
 		myWETH = await WETH.new()
@@ -116,10 +119,10 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 		const poolAddress = await myUniswapFactory.getPair(myWETH.address, myErc20.address)
 
-		await myMagicBoxes.updateMagicBox(0, [0], ether('1250'), false)
-		await myMagicBoxes.updateMagicBox(1, [1], ether('1250'), false)
-		await myMagicBoxes.updateMagicBox(2, [0, 1], ether('2125'), false)
-		await myMagicBoxes.updateMagicBox(3, [0, 0, 0, 1, 1, 1], ether('15000'), true)
+		await myMagicBoxes.updateMagicBox(0, [0], ether('1250'), myErc20.address, ether('20'), ether('80'), false)
+		await myMagicBoxes.updateMagicBox(1, [1], ether('1250'), myErc20.address, ether('20'), ether('80'), false)
+		await myMagicBoxes.updateMagicBox(2, [0, 1], ether('2125'), myErc20.address, ether('20'), ether('80'), false)
+		await myMagicBoxes.updateMagicBox(3, [0, 0, 0, 1, 1, 1], ether('1.63'), ethers.constants.AddressZero, '0', ether('100'), true)
 		await myMagicBoxes.updateFeeds(myBnbUsdFeed.address, poolAddress)
 		myUniswap = await Uniswap.new(myErc20.address)
 		myRelayer = await Relayer.new(myUniswap.address)
@@ -456,7 +459,8 @@ describe('MonstropolyMagicBoxesShop', function () {
 			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
 			myMagicBoxes = myMagicBoxes.connect(person)
 			let buyAmount = '2'
-			await myMagicBoxes.purchase(3, buyAmount)
+            let value = ethers.utils.parseEther('3.26')
+			await myMagicBoxes.purchase(3, buyAmount, { value: value })
 
 			//create meta-tx
 			const ScienceFactory = await ethers.getContractFactory('MonstropolyGenScience')

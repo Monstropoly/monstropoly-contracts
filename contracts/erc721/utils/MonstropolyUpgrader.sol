@@ -10,29 +10,26 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
+import "../../utils/ERC20Charger.sol";
 import "../../shared/IMonstropolyDeployer.sol";
 
-contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient {
+contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, ERC20Charger {
 
     string public override versionRecipient = "2.4.0";
 
-    mapping(IMonstropolyData.Rare => uint256) _upgradePrices;
+    mapping(uint => uint256) public upgradePrices;
 
     event HeroUpgraded(address indexed who, uint256 heroId, uint256[5] oldHeroes);
-    event UpdatePrices(uint256[5] prices);
+    event UpdatePrice(uint256 price, uint index);
 
     function initialize() public /** TBD: initializer */ { 
         __AccessControlProxyPausable_init(msg.sender);
 
-        uint256[5] memory _prices = [
-            uint256(50 ether),
-            uint256(100 ether),
-            uint256(500 ether),
-            uint256(1000 ether),
-            uint256(5000 ether)
-        ];
-
-        _updatePrices(_prices);
+        _updatePrice(50 ether, 0);
+        _updatePrice(100 ether, 1);
+        _updatePrice(500 ether, 2);
+        _updatePrice(1000 ether, 3);
+        _updatePrice(5000 ether, 4);
     }
 
     function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
@@ -50,24 +47,24 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
     function price(uint256 heroId) public view returns(uint256){
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
         IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
-        IMonstropolyFactory.Hero memory _hero = factory.heroeOfId(heroId);
-        uint _rare = data.getRarityByGen(_hero.genetic);
-        IMonstropolyData.Rare _upgradedRarity = _uintToRarity(_rare + 1);
-        return _upgradePrices[_upgradedRarity];        
+        IMonstropolyFactory.Token memory _token = factory.tokenOfId(heroId);
+        uint _rarity = data.getRarityByGen(_token.genetic);
+        return upgradePrices[_rarity];        
     }
 
-    function updatePrices(uint256[5] memory prices) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updatePrices(uint256[] memory prices) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _updatePrices(prices);
     }
 
-    function _updatePrices(uint256[5] memory prices) private {
-        _upgradePrices[IMonstropolyData.Rare.UNCOMMON]  = prices[0];
-        _upgradePrices[IMonstropolyData.Rare.PREMIUM]   = prices[1];
-        _upgradePrices[IMonstropolyData.Rare.RARE]      = prices[2];
-        _upgradePrices[IMonstropolyData.Rare.EXOTIC]    = prices[3];
-        _upgradePrices[IMonstropolyData.Rare.LEGENDARY] = prices[4];
+    function _updatePrices(uint256[] memory prices) private {
+        for (uint i = 0; i < prices.length; i++) {
+            _updatePrice(prices[i], i);
+        }
+    }
 
-        emit UpdatePrices(prices);
+    function _updatePrice(uint price_, uint index_) private {
+        upgradePrices[index_] = price_;
+        emit UpdatePrice(price_, index_);
     }
 
     function upgrade(
@@ -82,13 +79,13 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
         uint256[5] memory _assets;
 
         for(uint256 i; i < _tokens.length; i++) {
-            IMonstropolyFactory.Hero memory _hero = factory.heroeOfId(_tokens[i]);
-            _rarities[i] = data.getRarityByGen(_hero.genetic);   
-            _assets[i] = data.getAssetTypeByGen(_hero.genetic);
+            IMonstropolyFactory.Token memory _token = factory.tokenOfId(_tokens[i]);
+            _rarities[i] = data.getRarityByGen(_token.genetic);   
+            _assets[i] = data.getAssetByGen(_token.genetic);
         }
 
         _preUpgrade(_assets, _rarities);
-        uint256 _heroId = _clone == -1 ? _processUpgrade(_assets[0], _rarities[0], "") : _processUpgrade(_assets[0], _rarities[0], factory.heroeOfId(_tokens[uint(_clone)]).genetic);
+        uint256 _heroId = _clone == -1 ? _processUpgrade(_assets[0], _rarities[0], "") : _processUpgrade(_assets[0], _rarities[0], factory.tokenOfId(_tokens[uint(_clone)]).genetic);
 
         //TBD: consider a burnFrom
         factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[0]);
@@ -102,22 +99,16 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
 
     function _processUpgrade(
         uint256 _asset,
-        uint256 _rare,
+        uint256 _rarity,
         string memory _cloneGen
     ) internal returns(uint256) {
-        uint _maxRare      = uint(IMonstropolyData.Rare.LEGENDARY);        
-        IMonstropolyData.Rare _upgradedRarity = _uintToRarity(_rare + 1);
-        uint256 _upgradePrice = _upgradePrices[_upgradedRarity];
+        uint256 _upgradePrice = upgradePrices[_rarity];
+        require(_upgradePrice > 0, "MonstropolyUpgrader: You reach max rarity");
 
-        IMonstropolyERC20 erc20 = IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20")));
         IMonstropolyGenScience genScience = IMonstropolyGenScience(IMonstropolyDeployer(config).get(keccak256("SCIENCE")));
-
-        require(_rare < _maxRare, "MonstropolyUpgrader: You reach max rarity");
-        require(erc20.balanceOf(_msgSender()) >= _upgradePrice, "MonstropolyUpgrader: Insufficient MPOLY");
-        require(erc20.allowance(_msgSender(), address(this)) >= _upgradePrice, "MonstropolyUpgrader: Insufficient allowance");
         
         string memory _gen = genScience.generateFromRoot(
-            [_asset, 0, _rare + 1],
+            [_asset, 0, _rarity + 1],
             [true, false, true],
             false
         );
@@ -127,7 +118,12 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
         }
 
         uint256 _heroId = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY"))).mint(_msgSender(), _gen);
-        erc20.transferFrom(_msgSender(), IMonstropolyDeployer(config).get(keccak256("UPGRADER_WALLET")), _upgradePrice);
+        _transferFrom(
+            IMonstropolyDeployer(config).get(keccak256("ERC20")),
+            _msgSender(),
+            IMonstropolyDeployer(config).get(keccak256("UPGRADER_WALLET")), //TBD: ask right wallet/burn
+            _upgradePrice
+        );
         return _heroId;
     }
     
@@ -139,27 +135,5 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
             require(_assetTypes[i] == _assetTypes[0], "MonstropolyUpgrader: inconsistent asset");
             require(_rarities[i] == _rarities[0], "MonstropolyUpgrader: inconsistent rarity");    
         }
-    }
-
-    function _uintToRarity(uint _rarity) public pure returns(IMonstropolyData.Rare){
-        if(_rarity == 0){
-            return IMonstropolyData.Rare.COMMON;
-        }
-        if(_rarity == 1){
-            return IMonstropolyData.Rare.UNCOMMON;
-        }
-        if(_rarity == 2){
-            return IMonstropolyData.Rare.PREMIUM;
-        }
-        if(_rarity == 3){
-            return IMonstropolyData.Rare.RARE;
-        }
-        if(_rarity == 4){
-            return IMonstropolyData.Rare.EXOTIC;
-        }
-        if(_rarity == 5){
-            return IMonstropolyData.Rare.LEGENDARY;
-        }
-        return IMonstropolyData.Rare.COMMON;
     }
 }

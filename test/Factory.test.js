@@ -16,7 +16,7 @@ const Data = artifacts.require('MonstropolyData')
 const Factory = artifacts.require('MonstropolyFactory')
 const Science = artifacts.require('MonstropolyGenScience')
 
-const SALT = '748398223409078271829384132948734346321498890831874398135738578741832983748391111111111111111111987654987654987654987654'
+const SALT = '7483982234090782718293841329487343463214988908318743981357385787418329837483911111111111111111119876'
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 
 let myData, myFactory, myScience, myDeployer
@@ -68,11 +68,11 @@ describe('MonstropolyFactory', function () {
         let asset = '0'
         let gen = await myScience.generateAssetView(asset, SALT, false);
         const receipt = await myFactory.mint(person, gen.gen_)
-        let hero = await myFactory.heroeOfId('0')
+        let hero = await myFactory.tokenOfId('0')
+        let tokenOwner = await myFactory.ownerOf('0')
         let genAfterMint = await myScience.generateAssetView(asset, SALT, false);
-        expect(hero.owner).to.eq(person)
+        expect(tokenOwner).to.eq(person)
         expect(hero.genetic).to.eq(gen.gen_)
-        expect(hero.exists).to.eq(true)
         expect(gen.free_).to.eq(true)
         expect(genAfterMint.free_).to.eq(false)
     })

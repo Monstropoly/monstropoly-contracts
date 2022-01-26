@@ -16,18 +16,18 @@ const Data = artifacts.require('MonstropolyData')
 const Factory = artifacts.require('MonstropolyFactory')
 const Science = artifacts.require('MonstropolyGenScience')
 
-const SALT = '748398223409078271829384132948734346321498890831874398135738578741832983748391111111111111111111987654987654987654987654'
-const SALT_RARITY_0_INF = '777777777777000000777779999999999999999999999999999999991234000000765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_0_SUP = '7777777777770AB348777779999999999999999999999999999999991234701256765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_1_INF = '7777777777770AB349777779999999999999999999999999999999991234701257765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_1_SUP = '7777777777770E4460777779999999999999999999999999999999991234935008765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_2_INF = '7777777777770E4461777779999999999999999999999999999999991234935009765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_1_INF_VIP = '777777777777000000777779999999999999999999999999999999991234000000765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_1_SUP_VIP = '7777777777770BF075777779999999999999999999999999999999991234782453765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_2_INF_VIP = '7777777777770BF076777779999999999999999999999999999999991234782454765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_2_SUP_VIP = '7777777777770EEC93777779999999999999999999999999999999991234978067765678999999111111111111111111987654987654987654987654'
-const SALT_RARITY_3_INF_VIP = '7777777777770EEC94777779999999999999999999999999999999991234978068765678999999111111111111111111987654987654987654987654'
-const SALT_OVERFLOW = '777777777777999999777779999999999999999999999999999999991234978068765678999999111111111111111111987654987654987654987654'
+const SALT =                  '7483982234090782718293841329487343463214988908318743981357385787418329837483911111111111111111119876'
+const SALT_RARITY_0_INF =     '7777777777000007777779999999999999991234000000765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_0_SUP =     '7777777777AB3487777779999999999999991234701256765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_1_INF =     '7777777777AB3497777779999999999999991234701257765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_1_SUP =     '7777777777E44607777779999999999999991234935008765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_2_INF =     '7777777777E44617777779999999999999991234935009765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_1_INF_VIP = '7777777777000007777779999999999999991234000000765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_1_SUP_VIP = '7777777777BF0757777779999999999999991234782453765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_2_INF_VIP = '7777777777BF0767777779999999999999991234782454765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_2_SUP_VIP = '7777777777EEC937777779999999999999991234978067765678999999111111111111111111987654987654987654987654'
+const SALT_RARITY_3_INF_VIP = '7777777777EEC947777779999999999999991234978068765678999999111111111111111111987654987654987654987654'
+const SALT_OVERFLOW =         '7777777777fffff7777779999999999999991234978068765678999999111111111111111111987654987654987654987654'
 
 let myData, myFactory, myBreeder, myScience, myDeployer
 
@@ -144,42 +144,6 @@ describe('MonstropolyGenScience', function () {
 			let _rarity = dec1._rarity.random % dec1._rarity.module
 			expect(_rarity).to.eq(3)
 		})
-		it('can generate a random gen with fixed asset and type', async () => {
-			let asset1 = 0
-			let asset2 = 1
-			let type1 = 0
-			let type2 = 1
-			let gen1 = await myScience.generateTypeView(asset1, type1, SALT, false);
-			let gen2 = await myScience.generateTypeView(asset2, type2, SALT, false);
-			let dec1 = await myData.deconstructGen(gen1.gen_)
-			let dec2 = await myData.deconstructGen(gen2.gen_)
-			let decAsset1 = dec1._asset.random % dec1._asset.module
-			let decAsset2 = dec2._asset.random % dec2._asset.module
-			let decType1 = dec1._type.random % dec1._type.module
-			let decType2 = dec2._type.random % dec2._type.module
-			expect(decAsset1).to.eq(asset1)
-			expect(decAsset2).to.eq(asset2)
-			expect(decType1).to.eq(type1)
-			expect(decType2).to.eq(type2)
-		})
-		it('can generate a random gen with fixed asset and rarity', async () => {
-			let asset1 = 0
-			let asset2 = 1
-			let rarity1 = 0
-			let rarity2 = 1
-			let gen1 = await myScience.generateRarityView(asset1, rarity1, SALT);
-			let gen2 = await myScience.generateRarityView(asset2, rarity2, SALT);
-			let dec1 = await myData.deconstructGen(gen1.gen_)
-			let dec2 = await myData.deconstructGen(gen2.gen_)
-			let decAsset1 = dec1._asset.random % dec1._asset.module
-			let decAsset2 = dec2._asset.random % dec2._asset.module
-			let decRarity1 = dec1._rarity.random % dec1._rarity.module
-			let decRarity2 = dec2._rarity.random % dec2._rarity.module
-			expect(decAsset1).to.eq(asset1)
-			expect(decAsset2).to.eq(asset2)
-			expect(decRarity1).to.eq(rarity1)
-			expect(decRarity2).to.eq(rarity2)
-		})
 		it('can generate a random gen with fixed asset, type and rarity', async () => {
 			let asset = 0
 			let type = 5
@@ -200,8 +164,8 @@ describe('MonstropolyGenScience', function () {
 			let gen = await myScience.generateFromRootView([asset, type, rarity], [true, true, true], SALT, false);
 			let dec = await myData.deconstructGen(gen.gen_)
 			let stat0 = dec._stats[0].random % dec._stats[0].module
-			let newStatStr = '123456'
-			let newStatBN = new ethers.BigNumber.from('0x123456')
+			let newStatStr = '12345'
+			let newStatBN = new ethers.BigNumber.from('0x12345')
 			let newGen = await myData.setStatInGen(gen.gen_, newStatStr, 0)
 			let newDec = await myData.deconstructGen(newGen)
 			expect(newStatBN.toString()).to.eq(newDec._stats[0].random.toString())
@@ -214,8 +178,8 @@ describe('MonstropolyGenScience', function () {
 			let gen = await myScience.generateFromRootView([asset, type, rarity], [true, true, true], SALT, false);
 			let dec = await myData.deconstructGen(gen.gen_)
 			let stat0 = dec._stats[3].random % dec._stats[3].module
-			let newStat = '123456'
-            let newStatBN = new ethers.BigNumber.from('0x123456')
+			let newStat = '12345'
+            let newStatBN = new ethers.BigNumber.from('0x12345')
 			let newGen = await myData.setStatInGen(gen.gen_, newStat, 3)
 			let newDec = await myData.deconstructGen(newGen)
 			expect(newStatBN.toString()).to.eq(newDec._stats[3].random)
@@ -239,7 +203,7 @@ describe('MonstropolyGenScience', function () {
 			let type = 5
 			let rarity = 4
 			let gen = await myScience.generateFromRootView([asset, type, rarity], [true, true, true], SALT, false);
-			let newStat = 'ffffff'
+			let newStat = 'fffff'
 			gen = await myData.setStatInGen(gen.gen_, newStat, 0)
 			let dec = await myData.deconstructGen(gen)
 			let increment = 1
@@ -251,7 +215,7 @@ describe('MonstropolyGenScience', function () {
 			let type = 5
 			let rarity = 4
 			let gen = await myScience.generateFromRootView([asset, type, rarity], [true, true, true], SALT, false);
-			let newStat = '000063' //hex99
+			let newStat = '00063' //hex99
 			gen = await myData.setStatInGen(gen.gen_, newStat, 0)
 			let increment = 1
 			await expectRevert(myData.incrementStatInGen(gen, increment, 0),

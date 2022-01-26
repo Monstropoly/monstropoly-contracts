@@ -9,10 +9,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
+import "../../utils/ERC20Charger.sol";
 import "../../shared/IMonstropolyDeployer.sol";
 import "hardhat/console.sol";
 
-contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient {
+contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, ERC20Charger {
 
     string public override versionRecipient = "2.4.0";
 
@@ -63,18 +64,22 @@ contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole
         address account_ = _msgSender();
 
         IMonstropolyFactory factory_ = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
-        IMonstropolyFactory.Hero memory hero_ = factory_.heroeOfId(tokenId_);
-        string memory gen_ = hero_.genetic;
+        IMonstropolyFactory.Token memory token_ = factory_.tokenOfId(tokenId_);
+        string memory gen_ = token_.genetic;
         IMonstropolyData data_ = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
         gen_ = data_.incrementStatInGen(gen_, increment_, statIndex_);
-        uint asset_ = data_.getAssetTypeByGen(gen_);
+        uint asset_ = data_.getAssetByGen(gen_);
 
         //TBD: consider a burnFrom
         factory_.transferFrom(account_, address(0x000000000000000000000000000000000000dEaD), tokenId_);
         uint price_ = prices[asset_][statIndex_][increment_];
         require(price_ > 0, "MonstropolyTrainer: train not allowed");
-        IMonstropolyERC20 erc20_ = IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("GLD")));
-        erc20_.transferFrom(account_, IMonstropolyDeployer(config).get(keccak256("TREASURY_WALLET")), price_);
+        _transferFrom(
+            IMonstropolyDeployer(config).get(keccak256("GLD")),
+            account_,
+            IMonstropolyDeployer(config).get(keccak256("TREASURY_WALLET")),
+            price_
+        );
         uint newTokenId_ = factory_.mint(account_, gen_);
 
         emit TrainStat(tokenId_, statIndex_, increment_, price_);

@@ -63,7 +63,7 @@ contract MonstropolyMarketplace is
         _heroesAuctionId[_heroId]  = _currentAuction;
         _heroesInAuction[_heroId]  = true;        
         _auctionTracker.increment();
-        factory.lockHero(_heroId);
+        factory.lockToken(_heroId);
         emit AuctionCreated(msg.sender, _heroId, _price);
     }
 
@@ -114,7 +114,7 @@ contract MonstropolyMarketplace is
         uint256 _burnFee    = _calculatedFee.mul(80).div(100);
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
         IMonstropolyERC20 erc20 = IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20")));
-        factory.unlockHero(_auction.heroId);
+        factory.unlockToken(_auction.heroId);
         require(!factory.isLocked(_auction.heroId));
         factory.transferFrom(_auction.auctioner, msg.sender, _auction.heroId);
         erc20.transferFrom(msg.sender, _MonstropolyBurnWallet, _burnFee);        
@@ -128,7 +128,7 @@ contract MonstropolyMarketplace is
         Auction memory _auction = _auctions[_auctionId];
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
         uint256 lastAuctionId   = totalAuctions() - 1;
-        factory.unlockHero(_auction.heroId);   
+        factory.unlockToken(_auction.heroId);   
         // Si el ultimoID es igual al que queremos eliminar no hace falta el swap
         if(_auctionId != lastAuctionId){
             Auction memory _gapAuction           = _auctions[lastAuctionId];

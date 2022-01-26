@@ -17,17 +17,17 @@ const FACTORY_ID = ethers.utils.id('FACTORY')
 const UPGRADER_WALLET = ethers.utils.id('UPGRADER_WALLET')
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const SALT =    '748398223409078271829384132948734346321498890831874398135738578741832983748391111111111111111111987654987654987654987654'
-const SALT_0 =  '999999765678000000777777777777777777777799999999999999999999999999999989912340000007656789999991987654987654987654987654'
-const SALT_1 =  '999999765678000001777777777778777777777799999999999999999999999999999979912340000017656789999991987654987654987654987654'
-const SALT_2 =  '999999765678000002777777777779777777777799999999999999999999999999999969912340000027656789999991987654987654987654987654'
-const SALT_3 =  '999999765678000003777777777770777777777799999999999999999999999999999959912340000037656789999991987654987654987654987654'
-const SALT_4 =  '999999765678000004777777777771777777777799999999999999999999999999999949912340000047656789999991987654987654987654987654'
-const SALT_X0 = '9999997656780F423F777777777727777777777799999999999999999999999999999989912349999997656789999991987654987654987654987651'
-const SALT_X1 = '9999997656780F423F777777777737777777777799999999999999999999999999999979912349999997656789999991987654987654987654987652'
-const SALT_X2 = '9999997656780F423F777777777747777777777799999999999999999999999999999969912349999997656789999991987654987654987654987653'
-const SALT_X3 = '9999997656780F423F777777777757777777777799999999999999999999999999999959912349999997656789999991987654987654987654987654'
-const SALT_X4 = '9999997656780F423F777777777767777777777799999999999999999999999999999949912349999997656789999991987654987654987654987655'
+const SALT =    '7398223409078271938413294434630051289083187439813573857874183298374811111111987654987654987654987654'
+const SALT_0 =  '9999965678000007777777777777777777777999999999999989912340000007656789999991987654987654987654987654'
+const SALT_1 =  '9999965678000017777777777787777777777999999999999979912340000017656789999991987654987654987654987654'
+const SALT_2 =  '9999965678000027777777777797777777777999999999999969912340000027656789999991987654987654987654987654'
+const SALT_3 =  '9999965678000037777777777707777777777999999999999959912340000037656789999991987654987654987654987654'
+const SALT_4 =  '9999965678000047777777777717777777777999999999999949912340000047656789999991987654987654987654987654'
+const SALT_X0 = '9999965678F423F7777777777277777777777999999999999989912349999997656789999991987654987654987654987651'
+const SALT_X1 = '9999965678F423F7777777777377777777777999999999999979912349999997656789999991987654987654987654987652'
+const SALT_X2 = '9999965678F423F7777777777477777777777999999999999969912349999997656789999991987654987654987654987653'
+const SALT_X3 = '9999965678F423F7777777777577777777777999999999999959912349999997656789999991987654987654987654987654'
+const SALT_X4 = '9999965678F423F7777777777677777777777999999999999949912349999997656789999991987654987654987654987655'
 const SALTS = [SALT_0, SALT_1, SALT_2, SALT_3, SALT_4]
 const SALTS_INCONSISTENT_RARITY = [SALT_0, SALT_1, SALT_2, SALT_3, SALT_X0]
 const SALTS_MAX_RARITY = [SALT_X0, SALT_X1, SALT_X2, SALT_X3, SALT_X4]
@@ -62,7 +62,8 @@ describe('Upgrader', function () {
         const dataImpl = await Data.deploy();
         await myDeployer.deployProxyWithImplementation(DATA_ID, dataImpl.address, calldataData)
         await myDeployer.deploy(SCIENCE_ID, GenScience.bytecode, calldataData)
-        await myDeployer.deploy(FACTORY_ID, Factory.bytecode, calldataData)
+        const factoryImpl = await Factory.deploy();
+        await myDeployer.deployProxyWithImplementation(FACTORY_ID, factoryImpl.address, calldataData)
         await myDeployer.deploy(UPGRADER_ID, Upgrader.bytecode, calldataData)
         await myDeployer.deploy(ERC20_ID, ERC20.bytecode, calldataData)
 
@@ -144,7 +145,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('0')
+            const _hero = await myFactory.tokenOfId('0')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module
@@ -190,11 +191,12 @@ describe('Upgrader', function () {
 
             const signature = await person._signTypedData(domain, types, value)
             const response = await myRelayer.callAndRelay(setRandomData, myScience.address, value, signature)
-            const _newHero = await myFactory.heroeOfId('5')
-            expect(_newHero.owner).to.equal(person.address)
+            const _newHero = await myFactory.tokenOfId('5')
+            const _newOwner = await myFactory.ownerOf('5')
+            expect(_newOwner).to.equal(person.address)
             expect(_newHero.genetic).to.equal(gen.gen_)
-            const _oldHero = await myFactory.heroeOfId('4')
-            expect(_oldHero.owner).to.equal('0x000000000000000000000000000000000000dEaD')
+            const deadOwner = await myFactory.ownerOf('4')
+            expect(deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
         })
 
         it('can upgrade clonning through relayer', async () => {
@@ -203,7 +205,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('2')
+            const _hero = await myFactory.tokenOfId('2')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module
@@ -249,11 +251,13 @@ describe('Upgrader', function () {
 
             const signature = await person._signTypedData(domain, types, value)
             const response = await myRelayer.callAndRelay(setRandomData, myScience.address, value, signature)
-            const _newHero = await myFactory.heroeOfId('5')
-            expect(_newHero.owner).to.equal(person.address)
+            const _newHero = await myFactory.tokenOfId('5')
+            const _newOwner = await myFactory.ownerOf('5')
+            expect(_newOwner).to.equal(person.address)
             // expect(_newHero.genetic).to.equal(gen.gen_) //doesnt apply here because of attrs-clonning
-            const _oldHero = await myFactory.heroeOfId('2')
-            expect(_oldHero.owner).to.equal('0x000000000000000000000000000000000000dEaD')
+            const _oldHero = await myFactory.tokenOfId('2')
+            const deadOwner = await myFactory.ownerOf('2')
+            expect(deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
 
             const _oldDec = await myData.deconstructGen(_oldHero.genetic)
             const _newDec = await myData.deconstructGen(_newHero.genetic)
@@ -268,7 +272,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('0')
+            const _hero = await myFactory.tokenOfId('0')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module
@@ -318,22 +322,23 @@ describe('Upgrader', function () {
 
             await expectRevert(
                 myRelayer.callAndRelay(setRandomData, myScience.address, value, signature),
-                'MonstropolyUpgrader: Insufficient MPOLY'
+                'ERC20: transfer amount exceeds balance'
             )
 
             await myMPOLY.transfer(person.address, ethers.utils.parseEther('10000'))
 
             await expectRevert(
                 myRelayer.callAndRelay(setRandomData, myScience.address, value, signature),
-                'MonstropolyUpgrader: Insufficient allowance'
+                'ERC20: transfer amount exceeds allowance'
             )
             await (await myMPOLY.connect(person)).approve(myUpgrader.address, ethers.constants.MaxUint256)
             const response = await myRelayer.callAndRelay(setRandomData, myScience.address, value, signature)
-            const _newHero = await myFactory.heroeOfId('5')
-            expect(_newHero.owner).to.equal(person.address)
+            const _newHero = await myFactory.tokenOfId('5')
+            const _newOwner = await myFactory.ownerOf('5')
+            expect(_newOwner).to.equal(person.address)
             expect(_newHero.genetic).to.equal(gen.gen_)
-            const _oldHero = await myFactory.heroeOfId('4')
-            expect(_oldHero.owner).to.equal('0x000000000000000000000000000000000000dEaD')
+            const _deadOwner = await myFactory.ownerOf('4')
+            expect(_deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
         })
 
         it('cannot upgrade different assets', async () => {
@@ -342,7 +347,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('0')
+            const _hero = await myFactory.tokenOfId('0')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module
@@ -400,7 +405,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('0')
+            const _hero = await myFactory.tokenOfId('0')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module
@@ -458,7 +463,7 @@ describe('Upgrader', function () {
             await (await myMPOLY.connect(person)).approve(paymaster, ethers.constants.MaxUint256)
             await (await myFactory.connect(person)).setApprovalForAll(myUpgrader.address, true)
 
-            const _hero = await myFactory.heroeOfId('0')
+            const _hero = await myFactory.tokenOfId('0')
             const dec = await myData.deconstructGen(_hero.genetic)
             const asset = dec._rarity.random % dec._rarity.module
             let rarity = dec._rarity.random % dec._rarity.module

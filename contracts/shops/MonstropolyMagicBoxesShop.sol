@@ -4,6 +4,7 @@ import "../shared/IMonstropolyERC20.sol";
 import "../shared/IMonstropolyGenScience.sol";
 import "../shared/IMonstropolyFactory.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
+import "../utils/ERC20Charger.sol";
 import "../shared/IMonstropolyDeployer.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
@@ -17,10 +18,13 @@ import "@opengsn/contracts/src/BaseRelayRecipient.sol";
     TBD: discuss this with victor and sokar
  */
 
-contract MonstropolyMagicBoxesShop is UUPSUpgradeableByRole, BaseRelayRecipient {
+contract MonstropolyMagicBoxesShop is UUPSUpgradeableByRole, BaseRelayRecipient, ERC20Charger {
 
     struct MagicBox {
         uint256 price;
+        address token;
+        uint256 burnPercentage;
+        uint256 treasuryPercentage;
         bool vip;
         uint256[] assets;
     }
@@ -34,7 +38,7 @@ contract MonstropolyMagicBoxesShop is UUPSUpgradeableByRole, BaseRelayRecipient 
 
     event MagicBoxPurchased(address account, uint256 id, uint256 amount);
     event MagicBoxOpened(address account, uint256 asset, bool vip, uint256 tokenId);
-    event MagicBoxUpdated(uint256 id, uint256[] assets, uint256 price, bool vip);
+    event MagicBoxUpdated(uint256 id, uint256[] assets, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, bool vip);
 
     function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
         return BaseRelayRecipient._msgSender();
@@ -79,13 +83,14 @@ contract MonstropolyMagicBoxesShop is UUPSUpgradeableByRole, BaseRelayRecipient 
         _setTrustedForwarder(_forwarder);
     }
 
-    function _updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, bool vip) internal {
-        box[id] = MagicBox(price, vip, assets);
-        emit MagicBoxUpdated(id, assets, price, vip);
+    function _updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) internal {
+        require((burnPercentage_ + treasuryPercentage_) == 100 ether, "MonstropolyMagicBoxesShop: wrong percentages");
+        box[id] = MagicBox(price, token, burnPercentage_, treasuryPercentage_, vip, assets);
+        emit MagicBoxUpdated(id, assets, price, token, burnPercentage_, treasuryPercentage_, vip);
     }
 
-    function updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, bool vip) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _updateMagicBox(id, assets, price, vip);
+    function updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _updateMagicBox(id, assets, price, token, burnPercentage_, treasuryPercentage_, vip);
     }
 
     function updateFeeds(address newPriceFeed, address newPool) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -93,14 +98,21 @@ contract MonstropolyMagicBoxesShop is UUPSUpgradeableByRole, BaseRelayRecipient 
         pool = newPool;
     } 
 
-    function purchase(uint256 id, uint256 amount) public virtual {
+    function purchase(uint256 id, uint256 amount) public payable virtual {
         address account = msg.sender;
         uint256 price = box[id].price * amount;
         
         require(price > 0, "MonstropolyMagicBoxesShop: box not created");
 
-        IMonstropolyERC20 erc20 = IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20")));
-        erc20.burnFrom(account, price);
+        if (box[id].treasuryPercentage > 0) {
+            uint treasuryAmount_ = price * box[id].treasuryPercentage /  100 ether;
+            _transferFrom(box[id].token, account, IMonstropolyDeployer(config).get(keccak256("TREASURY_WALLET")), treasuryAmount_);
+        }
+
+        if (box[id].burnPercentage > 0) {
+            uint burnAmount_ = price * box[id].burnPercentage /  100 ether;
+            _burnFromERC20(box[id].token, account, burnAmount_);
+        }
 
         for(uint i = 0; i < box[id].assets.length; i++) {
             balances[account][box[id].vip][box[id].assets[i]] += amount;
