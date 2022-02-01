@@ -2,7 +2,7 @@ const { getWhitelistTree, solKeccak256 } = require('../utils/whitelistTree')
 const hre = require('hardhat')
 const { ethers } = require('hardhat');
 const {
-  ether, time, expectRevert
+  ether, time, expectRevert, expectEvent
 } = require('@openzeppelin/test-helpers')
 const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 const { artifacts } = require('hardhat');
@@ -42,7 +42,7 @@ const nBlocks = (currentBlock, n) => {
   return (Number(currentBlock.toString()) + n).toString()
 }
 
-describe('DeFi', function () {
+describe('Staking', function () {
 
   before(async () => {
     await hre.run('compile')
@@ -111,8 +111,8 @@ describe('DeFi', function () {
     await myErc20.transfer(person, ether('100000'))
   })
 
-  describe('Staking', () => {
-    it('staker can deposit and claim correctly', async () => {
+  describe('Deposit', () => {
+    it('can deposit and claim correctly', async () => {
       const balance = await myErc20.balanceOf(owner)
 
       await myErc20.approve(myStaking.address, balance)
@@ -128,7 +128,14 @@ describe('DeFi', function () {
 
       expect(etherToNumber(reward)).to.approximately(rewardExp, 0.000000001)
     })
-    it('staker cannot deposit 0 tokens', async () => {
+    it('can deposit twice', async () => {
+      await myErc20.approve(myStaking.address, TWO_ETHER)
+      await myStaking.depositFrom(owner, ONE_ETHER)
+      await myStaking.depositFrom(owner, ONE_ETHER)
+      const balance = await myStaking.getUserBalance(owner)
+      expect(etherToNumber(balance)).to.eq(etherToNumber(TWO_ETHER))
+    })
+    it('cannot deposit 0 tokens', async () => {
       await expectRevert(myStaking.depositFrom(owner, 0), "MonstropolyStaking: amount must be over zero")
     })
     it('two stakers can deposit and claim correctly', async () => {
@@ -149,7 +156,34 @@ describe('DeFi', function () {
 
       expect(etherToNumber(reward2)).to.approximately(etherToNumber(reward) / 1000, etherToNumber(reward2) / 20)
     })
-    it('staker can withdraw', async () => {
+    it('depositAll & toggling autoreward', async () => {
+      const balance = await myErc20.balanceOf(owner)
+      await myErc20.approve(myStaking.address, balance)
+      await myStaking.depositAll(owner)
+      await myStaking.toggleAutoreward()
+      await myStaking.withdrawAll()
+      const pending = await myStaking.pendingRewards(owner)
+      expect(etherToNumber(pending)).to.gt(0)
+    })
+    it('cannot deposit if not approved', async () => {
+      await expectRevert(myStaking.depositFrom(owner, ONE_ETHER), "ERC20: transfer amount exceeds allowance")
+    })
+    it('cannot deposit if exceeds balance', async () => {
+      await expectRevert(myStaking.depositFrom(owner, ether('1000000000000')), "ERC20: transfer amount exceeds balance")
+    })
+    it('can deposit twice (not getting rewards)', async () => {
+      await myErc20.approve(myStaking.address, TWO_ETHER)
+      await myStaking.depositFrom(owner, ONE_ETHER)
+      await myStaking.toggleAutoreward()
+      await myStaking.depositFrom(owner, ONE_ETHER)
+      const balance = await myStaking.getUserBalance(owner)
+      const pending = await myStaking.pendingRewards(owner)
+      expect(etherToNumber(balance)).to.eq(etherToNumber(TWO_ETHER))
+      expect(etherToNumber(pending)).to.gt(0)
+    })
+  })
+  describe('Withdraw', () => {
+    it('can withdraw', async () => {
       const balance = await myErc20.balanceOf(owner)
 
       await myErc20.approve(myStaking.address, balance)
@@ -166,7 +200,7 @@ describe('DeFi', function () {
 
       expect(etherToNumber(balance)).to.approximately(etherToNumber(balancePost.add(burned)) - rewardExp, 0.000000001)
     })
-    it('staker can withdraw (emergency) if paused', async () => {
+    it('can (emergency) withdraw if paused', async () => {
       const balance = await myErc20.balanceOf(owner)
 
       await myErc20.approve(myStaking.address, balance)
@@ -180,12 +214,30 @@ describe('DeFi', function () {
 
       expect(etherToNumber(balance)).to.eq(etherToNumber(balancePost))
     })
-    it('staker cannot withdraw zero', async () => {
+    it('cannot withdraw zero', async () => {
       await expectRevert(myStaking.withdrawAll(), "MonstropolyStaking: amount must be over zero")
     })
-    it('staker cannot withdraw more than balance', async () => {
+    it('cannot withdraw more than balance', async () => {
       await expectRevert(myStaking.withdraw(ether('20')), "MonstropolyStaking: user has not enough staking balance")
     })
+    it('cannot (emergency) withdraw if not deposited', async () => {
+      await myStaking.pause()
+      await expectRevert(myStaking.emergencyWithdraw(), "MonstropolyStaking: no tokens to withdraw")
+    })
+    it('can partially withdraw', async () => {
+      await myErc20.approve(myStaking.address, TWO_ETHER)
+      await myStaking.depositFrom(owner, TWO_ETHER)
+      await myStaking.withdraw(ONE_ETHER)
+      const balance = await myStaking.getUserBalance(owner)
+      expect(etherToNumber(balance)).to.eq(1)
+    })
+  })
+  describe('Claim', () => {
+    it('cannot claim zero tokens', async () => {
+      await expectRevert(myStaking.claim(), "MonstropolyStaking: nothing to claim")
+    })
+  })
+  describe('Fees', () => {
     it('fees change do not apply to old depositors', async () => {
       const balance = await myErc20.balanceOf(owner)
 
@@ -202,6 +254,11 @@ describe('DeFi', function () {
       const balance = await myErc20.balanceOf(owner)
 
       await myStaking.setFees(ether('0'), ether('0'))
+      const setTx = await myStaking.setFeeInterval(0)
+
+      expectEvent(setTx, 'SetFeeInterval', {
+        feeInterval: '0'
+      })
 
       await myErc20.approve(myStaking.address, balance)
       await myStaking.depositFrom(owner, balance)
@@ -211,81 +268,86 @@ describe('DeFi', function () {
       const burned = await myErc20.burned()
       expect(etherToNumber(burned)).to.eq(0)
     })
+    it('cannot set if minfee exceeds maxfee', async () => {
+      await expectRevert(myStaking.setFees(TWO_ETHER, ONE_ETHER), "MonstropolyStaking: mininum fee must be greater or equal than maximum fee")
+    })
+    it('cannot set if maxfee exceeds 100 ether', async () => {
+      await expectRevert(myStaking.setFees(ether('80'), ether('200')), "MonstropolyStaking: maxFee cannot exceed 100 ether")
+    })
+    it('cannot set if minfee exceeds 100 ether', async () => {
+      await expectRevert(myStaking.setFees(ether('200'), ether('300')), "MonstropolyStaking: minFee cannot exceed 100 ether")
+    })
   })
-  describe('Farming', () => {
-    it('farmer can deposit and claim correctly', async () => {
-      await myFarming.setLP(myErc20.address)
-
+  describe('Other functions', () => {
+    it('getBlocksLeft', async () => {
+      await myStaking.setFeeInterval(30)
+      const feeInterval = await myStaking.feeInterval()
       const balance = await myErc20.balanceOf(owner)
-
-      await myErc20.approve(myFarming.address, balance)
-      await myFarming.depositFrom(owner, balance)
-
-      const perBlock = etherToNumber(await myRewardsDist.rewardPerBlock())
-      const allocation = 30
-      const rewardExp = perBlock * allocation / 100
-
-      await myFarming.claim()
-
-      const reward = await myErc20.balanceOf(owner)
-
-      expect(etherToNumber(reward)).to.approximately(rewardExp, 0.000000001)
+      await myErc20.approve(myStaking.address, balance)
+      await myStaking.depositAll(owner)
+      const left = await myStaking.getBlocksLeft(owner)
+      expect(feeInterval.toString()).to.eq(left.toString())
+      const currentBlock = await time.latestBlock()
+      const endInterval = parseInt(currentBlock) + parseInt(feeInterval)
+      await time.advanceBlockTo(endInterval+1)
+      const left2 = await myStaking.getBlocksLeft(owner)
+      expect(left2.toString()).to.eq('0')
+      const pending = await myStaking.pendingRewards(owner)
+      expect(etherToNumber(pending)).to.gt(0)
     })
-    it('farmer can withdraw', async () => {
+    it('can syncBalance', async () => {
+      await myErc20.transfer(myStaking.address, ONE_ETHER)
 
-      await myFarming.setLP(myErc20.address)
+      const [gapS, gapF] = await Promise.all([
+        myStaking.getTokenGap()
+      ]) 
 
-      const balance = await myErc20.balanceOf(owner)
+      expect(etherToNumber(gapS)).to.gt(0)
 
-      await myErc20.approve(myFarming.address, balance)
-      await myFarming.depositFrom(owner, balance)
-
-      const perBlock = etherToNumber(await myRewardsDist.rewardPerBlock())
-      const allocation = 30
-      const rewardExp = perBlock * allocation / 100
-
-      await myFarming.withdrawAll()
-
-      const balancePost = await myErc20.balanceOf(owner)
-      
-      expect(etherToNumber(balance)).to.approximately(etherToNumber(balancePost) - rewardExp, 0.000000001)
+      const syncS = await myStaking.syncBalance(owner)
+      expectEvent(syncS, 'SyncBalance', {
+        account: owner,
+        amount: ONE_ETHER.toString()
+      })
     })
-    it('farmer can withdraw (emergency) if paused', async () => {
-      await myFarming.setLP(myErc20.address)
-
-      const balance = await myErc20.balanceOf(owner)
-
-      await myErc20.approve(myFarming.address, balance)
-      await myFarming.depositFrom(owner, balance)
-
-      await myFarming.pause()
-
-      await myFarming.emergencyWithdraw()
-
-      const balancePost = await myErc20.balanceOf(owner)
-
-      expect(etherToNumber(balance)).to.eq(etherToNumber(balancePost))
+    it('cannot syncBalance if no gap', async () => {
+      await expectRevert(myStaking.syncBalance(owner), "MonstropolyStaking: there is no gap")
     })
-    it('autoreward disable', async () => {
-      await myFarming.setLP(myErc20.address)
+    it('can migrate', async () => {
+      const stakingFactory = await ethers.getContractFactory('MonstropolyStaking')
+      let calldataStaking = await stakingFactory.interface.encodeFunctionData('initialize', []);
+      await myDeployer.deploy(solKeccak256("STAKING2"), Staking.bytecode, calldataStaking)
 
-      const balance = await myErc20.balanceOf(owner)
+      await myErc20.approve(myStaking.address, ONE_ETHER)
+      await myStaking.depositFrom(owner, ONE_ETHER)
 
-      await myErc20.approve(myFarming.address, balance)
-      await myFarming.depositFrom(owner, balance)
-      await myFarming.toggleAutoreward()
+      const staking2 = await myDeployer.get(solKeccak256("STAKING2"))
+      const balance = await myStaking.getUserBalance(owner)
 
-      await myFarming.withdrawAll()
+      await myErc20.approve(staking2, balance) 
 
-      const postBalance = await myErc20.balanceOf(owner)
+      const mig = await myStaking.migrate(staking2)
+      expectEvent(mig, 'Migrate', {
+        from: myStaking.address,
+        to: staking2,
+        account: owner
+      })
+    })
+    it('cannot migrate if not approved token', async () => {
+      const stakingFactory = await ethers.getContractFactory('MonstropolyStaking')
+      let calldataStaking = await stakingFactory.interface.encodeFunctionData('initialize', []);
+      await myDeployer.deploy(solKeccak256("STAKING2"), Staking.bytecode, calldataStaking)
 
-      await myFarming.claim()
+      await myErc20.approve(myStaking.address, ONE_ETHER)
+      await myStaking.depositFrom(owner, ONE_ETHER)
 
-      const afterClaim = await myErc20.balanceOf(owner)
-      const reward = afterClaim.sub(postBalance)
+      const staking2 = await myDeployer.get(solKeccak256("STAKING2"))
+      const balance = await myStaking.getUserBalance(owner)
 
-      expect(etherToNumber(reward)).to.greaterThan(0)
-      expect(etherToNumber(balance)).to.eq(etherToNumber(postBalance))
+      // await myErc20.approve(staking2, balance) 
+
+      await expectRevert(myStaking.migrate(staking2), "MonstropolyStaking: migration failed") 
+
     })
     it('check lastReward', async () => {
 
@@ -299,19 +361,25 @@ describe('DeFi', function () {
         myRewardsDist.allocation(solKeccak256("FARMING"))
       ])
 
+      const firstLast = await myStaking.lastReward()
+
+      expect(etherToNumber(firstLast)).to.eq(etherToNumber(rewardPerBlock.mul(stakingAllocation).div(H_ETHER)))
+
       const firstReward = increment.mul(ONE_ETHER).div(TWO_ETHER)
 
       await time.advanceBlockTo(parseInt(changeBlock.toString()) + 1)
 
       const stakingLastReward = await myStaking.lastReward()
-      const farmingLastReward = await myFarming.lastReward()
 
       const expSReward = rewardPerBlock.add(firstReward).mul(stakingAllocation).div(H_ETHER)
-      const expFReward = rewardPerBlock.add(firstReward).mul(farmingAllocation).div(H_ETHER)
-      console.log(etherToNumber(expSReward), etherToNumber(expFReward))
+      
       expect(etherToNumber(expSReward)).to.eq(etherToNumber(stakingLastReward))
-      expect(etherToNumber(expFReward)).to.eq(etherToNumber(farmingLastReward))
+     
+      await time.advanceBlockTo(parseInt(endBlock.toString()) + 1)
 
+      const lastS = await myStaking.lastReward()
+
+      expect(etherToNumber(lastS)).to.eq(0)
     }) 
   })
 })

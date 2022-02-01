@@ -42,9 +42,11 @@ contract MonstropolyRelayer is EIP712 {
         paymaster = paymaster_;
     }
 
-    function verify(ForwardRequest calldata req, bytes calldata signature) external view {
+    function verify(ForwardRequest calldata req, bytes calldata signature) external view returns(bool) {
         _verifyNonce(req);
         _verifySign(req, signature);
+        _verifyValidUntil(req);
+        return true;
     }
 
     function getNonce(address from) public view returns(uint256) {
@@ -112,7 +114,7 @@ contract MonstropolyRelayer is EIP712 {
             gasForTransfer = 40000; //buffer in case we need to move eth after the transaction.
         }
         bytes memory callData = abi.encodePacked(req.data, req.from);
-        require(gasleft()*63/64 >= req.gas + gasForTransfer, "FWD: insufficient gas");
+        require(gasleft()*63/64 >= req.gas + gasForTransfer, "MonstropolyRelayer: insufficient gas");
         // solhint-disable-next-line avoid-low-level-calls
         (success,ret) = req.to.call{gas : req.gas, value : req.value}(callData);
         if ( req.value != 0 && address(this).balance>0 ) {
@@ -165,11 +167,11 @@ contract MonstropolyRelayer is EIP712 {
     }
 
     function _verifyNonce(ForwardRequest calldata req) internal view {
-        require(nonces[req.from] == req.nonce, "FWD: nonce mismatch");
+        require(nonces[req.from] == req.nonce, "MonstropolyRelayer: nonce mismatch");
     }
 
     function _verifyAndUpdateNonce(ForwardRequest calldata req) internal {
-        require(nonces[req.from]++ == req.nonce, "FWD: nonce mismatch");
+        require(nonces[req.from]++ == req.nonce, "MonstropolyRelayer: nonce mismatch");
     }
 
     function _getEncoded(

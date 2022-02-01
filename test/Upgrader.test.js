@@ -183,7 +183,7 @@ describe('Upgrader', function () {
                 from: person.address,
                 to: myUpgrader.address,
                 value: 0,
-                gas: 3000000,
+                gas: 5000000,
                 nonce: nonce.toString(),
                 data: upgradeData,
                 validUntil: 0
@@ -195,9 +195,9 @@ describe('Upgrader', function () {
             const _newOwner = await myFactory.ownerOf('5')
             expect(_newOwner).to.equal(person.address)
             expect(_newHero.genetic).to.equal(gen.gen_)
-            const deadOwner = await myFactory.ownerOf('4')
-            expect(deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
-        })
+            const deadOwner = await myFactory.exists('4')
+            expect(deadOwner).to.equal(false)
+        }).timeout(40000)
 
         it('can upgrade clonning through relayer', async () => {
             await mintBatch(myScience, myFactory, person.address, ['0', '0', '0', '0', '0'], SALTS)
@@ -243,21 +243,21 @@ describe('Upgrader', function () {
                 from: person.address,
                 to: myUpgrader.address,
                 value: 0,
-                gas: 3000000,
+                gas: 5000000,
                 nonce: nonce.toString(),
                 data: upgradeData,
                 validUntil: 0
             }
 
             const signature = await person._signTypedData(domain, types, value)
+            const _oldHero = await myFactory.tokenOfId('2')
             const response = await myRelayer.callAndRelay(setRandomData, myScience.address, value, signature)
             const _newHero = await myFactory.tokenOfId('5')
             const _newOwner = await myFactory.ownerOf('5')
             expect(_newOwner).to.equal(person.address)
             // expect(_newHero.genetic).to.equal(gen.gen_) //doesnt apply here because of attrs-clonning
-            const _oldHero = await myFactory.tokenOfId('2')
-            const deadOwner = await myFactory.ownerOf('2')
-            expect(deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
+            const deadOwner = await myFactory.exists('2')
+            expect(deadOwner).to.equal(false)
 
             const _oldDec = await myData.deconstructGen(_oldHero.genetic)
             const _newDec = await myData.deconstructGen(_newHero.genetic)
@@ -265,7 +265,7 @@ describe('Upgrader', function () {
             for(let i = 0; i < _newDec._attributes.length; i++) {
                 expect(_newDec._attributes[i].random % _newDec._attributes[i].module).to.eq(_oldDec._attributes[i].random % _oldDec._attributes[i].module)
             }
-        })
+        }).timeout(40000);
 
         it('upgrade reverts if no balance or allowance', async () => {
             await mintBatch(myScience, myFactory, person.address, ['0', '0', '0', '0', '0'], SALTS)
@@ -310,7 +310,7 @@ describe('Upgrader', function () {
                 from: person.address,
                 to: myUpgrader.address,
                 value: 0,
-                gas: 3000000,
+                gas: 5000000,
                 nonce: nonce.toString(),
                 data: upgradeData,
                 validUntil: 0
@@ -337,9 +337,9 @@ describe('Upgrader', function () {
             const _newOwner = await myFactory.ownerOf('5')
             expect(_newOwner).to.equal(person.address)
             expect(_newHero.genetic).to.equal(gen.gen_)
-            const _deadOwner = await myFactory.ownerOf('4')
-            expect(_deadOwner).to.equal('0x000000000000000000000000000000000000dEaD')
-        })
+            const deadOwner = await myFactory.exists('2')
+            expect(deadOwner).to.equal(false)
+        }).timeout(40000);
 
         it('cannot upgrade different assets', async () => {
             await mintBatch(myScience, myFactory, person.address, ['1', '0', '0', '0', '0'], SALTS)
@@ -513,6 +513,6 @@ describe('Upgrader', function () {
                 myRelayer.callAndRelay(setRandomData, myScience.address, value, signature),
                 'MonstropolyUpgrader: You reach max rarity'
             )
-        })
+        }).timeout(40000)
     })
 })

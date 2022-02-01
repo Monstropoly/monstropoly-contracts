@@ -11,6 +11,7 @@ const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 const ERC20_ID = ethers.utils.id('ERC20')
 const DISTRIBUTION_VAULT_ID = ethers.utils.id('DISTRIBUTION_VAULT')
 const ANTIBOT_ROLE = ethers.utils.id('ANTIBOT_ROLE')
+const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 describe('ERC20', function () {
@@ -35,7 +36,69 @@ describe('ERC20', function () {
         myMPOLY = await ERC20.attach(erc20Address)
 
         await myDeployer.grantRole(ANTIBOT_ROLE, team.address)
+        await myDeployer.grantRole(MINTER_ROLE, team.address)
     })
+
+    describe('general', () => {
+        it('only minter role can (try to) mint', async () => {
+            await expectRevert(
+                (await myMPOLY.connect(owner)).mint(person.address, ethers.utils.parseEther('20000')),
+                'AccessControlProxyPausable: account ' + String(owner.address).toLowerCase() + ' is missing role ' + MINTER_ROLE
+            )
+        })
+
+        it('cannot mint over max cap', async () => {
+            await expectRevert(
+                (await myMPOLY.connect(team)).mint(person.address, ethers.utils.parseEther('20000')),
+                'MonstropolyERC20: cap exceeded'
+            )
+        })
+
+        it('can approveAll balance', async () => {
+            await (await myMPOLY.connect(owner)).approveAll(person.address)
+            let allowance = await myMPOLY.allowance(owner.address, person.address)
+            let balance = await myMPOLY.allowance(owner.address, person.address)
+
+            expect(balance.toString()).to.equal(allowance.toString())
+        })
+
+        it('can burnFrom being the sender', async () => {
+            let supplyPre = await myMPOLY.totalSupply()
+            let burnAmount = ethers.utils.parseEther('1000')
+            await (await myMPOLY.connect(owner)).burnFrom(owner.address, burnAmount)
+            let supplyPost = await myMPOLY.totalSupply()
+
+            expect(supplyPre.sub(supplyPost).toString()).to.equal(burnAmount.toString())
+        })
+
+        it('can burnFrom after approve maxuint', async () => {
+            let supplyPre = await myMPOLY.totalSupply()
+            let amount = ethers.utils.parseEther('1000')
+            await (await myMPOLY.connect(owner)).approve(person.address, ethers.constants.MaxUint256)
+            await (await myMPOLY.connect(person)).burnFrom(owner.address, amount)
+            let supplyPost = await myMPOLY.totalSupply()
+
+            expect(supplyPre.sub(supplyPost).toString()).to.equal(amount.toString())
+        })
+
+        it('can burnFrom after approve exact amount', async () => {
+            let supplyPre = await myMPOLY.totalSupply()
+            let amount = ethers.utils.parseEther('1000')
+            await (await myMPOLY.connect(owner)).approve(person.address, amount)
+            await (await myMPOLY.connect(person)).burnFrom(owner.address, amount)
+            let supplyPost = await myMPOLY.totalSupply()
+
+            expect(supplyPre.sub(supplyPost).toString()).to.equal(amount.toString())
+        })
+
+        it('cannot burnFrom without approving', async () => {
+            await expectRevert(
+                (await myMPOLY.connect(team)).burnFrom(owner.address, ethers.utils.parseEther('20000')),
+                'MonstropolyERC20: amount exceeds allowance'
+            )
+        })
+    })
+
     describe('Antibot', () => {
         it('antibot role can start functionalities', async () => {
             await (await myMPOLY.connect(team)).startAntiBot()
@@ -98,6 +161,61 @@ describe('ERC20', function () {
             await expectRevert(
                 (await myMPOLY.connect(owner)).transfer(person.address, ethers.utils.parseEther('1')),
                 'MonstropolyERC20: Maxbalance for antibot'
+            )
+        })
+
+        it('can set antibot max balance', async () => {
+            await (await myMPOLY.connect(team)).startAntiBot()
+
+            await expectRevert(
+                (await myMPOLY.connect(owner)).transfer(person.address, ethers.utils.parseEther('20000')),
+                'MonstropolyERC20: Maxbalance for antibot'
+            )
+
+            const newMaxBalance = ethers.utils.parseEther('30000')
+            await (await myMPOLY.connect(team)).setAntiBotMaxBalance(newMaxBalance)
+            let maxBalanceEncoded = await ethers.provider.getStorageAt(myMPOLY.address, 206)
+            let maxBalance = ethers.utils.defaultAbiCoder.decode(['uint256'], maxBalanceEncoded)
+
+            expect(maxBalance.toString()).to.equal(newMaxBalance.toString())
+            await (await myMPOLY.connect(owner)).transfer(person.address, ethers.utils.parseEther('20000'))
+        })
+
+        it('can set antibot max balance and transfer exact amount', async () => {
+            await (await myMPOLY.connect(team)).startAntiBot()
+
+            await expectRevert(
+                (await myMPOLY.connect(owner)).transfer(person.address, ethers.utils.parseEther('20000')),
+                'MonstropolyERC20: Maxbalance for antibot'
+            )
+
+            const newMaxBalance = ethers.utils.parseEther('30000')
+            await (await myMPOLY.connect(team)).setAntiBotMaxBalance(newMaxBalance)
+            let maxBalanceEncoded = await ethers.provider.getStorageAt(myMPOLY.address, 206)
+            let maxBalance = ethers.utils.defaultAbiCoder.decode(['uint256'], maxBalanceEncoded)
+
+            expect(maxBalance.toString()).to.equal(newMaxBalance.toString())
+            await (await myMPOLY.connect(owner)).transfer(person.address, ethers.utils.parseEther('30000'))
+        })
+
+        it('only antibot role can set antibot max balance', async () => {
+            await expectRevert(
+                (await myMPOLY.connect(person)).setAntiBotMaxBalance(ethers.utils.parseEther('10000')),
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + ANTIBOT_ROLE
+            )
+
+            const newMaxBalance = ethers.utils.parseEther('10000')
+            await (await myMPOLY.connect(team)).setAntiBotMaxBalance(newMaxBalance)
+            let maxBalanceEncoded = await ethers.provider.getStorageAt(myMPOLY.address, 206)
+            let maxBalance = ethers.utils.defaultAbiCoder.decode(['uint256'], maxBalanceEncoded)
+
+            expect(maxBalance.toString()).to.equal(newMaxBalance.toString())
+        })
+
+        it('antibot max balance must be over 10k', async () => {
+            await expectRevert(
+                (await myMPOLY.connect(team)).setAntiBotMaxBalance(ethers.utils.parseEther('3000')),
+                'MonstropolyERC20: max must be >= 10k'
             )
         })
     })

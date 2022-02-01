@@ -12,8 +12,6 @@ const { formatEther, formatUnits } = require('@ethersproject/units')
 const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
 const { MAX_UINT256 } = require('@openzeppelin/test-helpers/src/constants')
 const Deployer = artifacts.require('MonstropolyDeployer')
-const Whitelist = artifacts.require('MonstropolyWhitelist')
-const Airdrop = artifacts.require('MonstropolyAirdrop')
 const MagicBoxes = artifacts.require('MonstropolyMagicBoxesShop')
 const AggregatorMock = artifacts.require('AggregatorMock')
 const ERC20 = artifacts.require('MonstropolyERC20')
@@ -48,6 +46,7 @@ const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
 const RANDOM =  '7483982234090782718293841329487343463214988908318743981357385787418329837483911111111111111111119876'
 const RANDOM1 = '7483982234090782718293841329487343463214988908318743981357385787418329837483981347913480163847501638'
+const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 describe('MonstropolyMagicBoxesShop', function () {
 	let owner, person, person2
@@ -123,7 +122,6 @@ describe('MonstropolyMagicBoxesShop', function () {
 		await myMagicBoxes.updateMagicBox(1, [1], ether('1250'), myErc20.address, ether('20'), ether('80'), false)
 		await myMagicBoxes.updateMagicBox(2, [0, 1], ether('2125'), myErc20.address, ether('20'), ether('80'), false)
 		await myMagicBoxes.updateMagicBox(3, [0, 0, 0, 1, 1, 1], ether('1.63'), ethers.constants.AddressZero, '0', ether('100'), true)
-		await myMagicBoxes.updateFeeds(myBnbUsdFeed.address, poolAddress)
 		myUniswap = await Uniswap.new(myErc20.address)
 		myRelayer = await Relayer.new(myUniswap.address)
 	})
@@ -535,6 +533,112 @@ describe('MonstropolyMagicBoxesShop', function () {
 			expect(owner1).to.eq(person.address)
 			expect(prevBalance1.toString()).to.eq((parseInt(buyAmount)*3).toString())
 			expect(postBalance1.toString()).to.eq((parseInt(buyAmount)*3 - 1).toString())
+		})
+
+        it('can updateMagicBox', async () => {
+            let boxId = 0
+            let newAssets = [1,0]
+            let newPrice = ether('777')
+            let newBurnPercentage = ether('40')
+            let newTreasuryPercentage = ether('60')
+            let newTokenAddress = person.address
+            let newVip = true
+            await myMagicBoxes.updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip)
+            let box = await myMagicBoxes.box(boxId)
+            expect(box.price.toString()).to.equal(newPrice.toString())
+            expect(box.burnPercentage.toString()).to.equal(newBurnPercentage.toString())
+            expect(box.treasuryPercentage.toString()).to.equal(newTreasuryPercentage.toString())
+            expect(box.token).to.equal(newTokenAddress)
+            expect(box.vip).to.equal(newVip)
+		})
+
+        it('only default admin role can updateMagicBox', async () => {
+            let boxId = 0
+            let newAssets = [1,0]
+            let newPrice = ethers.utils.parseEther('777')
+            let newBurnPercentage = ethers.utils.parseEther('40')
+            let newTreasuryPercentage = ethers.utils.parseEther('60')
+            let newTokenAddress = person.address
+            let newVip = true
+            const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
+			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
+            await expectRevert(
+                (await myMagicBoxes.connect(person)).updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip),
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
+            )
+		})
+
+        it('updateMagicBox reverts if wrong percentages', async () => {
+            let boxId = 0
+            let newAssets = [1,0]
+            let newPrice = ether('777')
+            let newBurnPercentage = ether('70')
+            let newTreasuryPercentage = ether('60')
+            let newTokenAddress = person.address
+            let newVip = true
+            await expectRevert(
+                myMagicBoxes.updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip),
+                'MonstropolyMagicBoxesShop: wrong percentages'
+            )
+		})
+
+        it('reverts if trying to buy an inexistent box', async () => {
+			//signerWallet
+			myErc20 = myErc20.connect(person)
+			const paymaster = await myRelayer.paymaster()
+			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
+			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+			await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			//purchase
+			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
+			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
+			myMagicBoxes = myMagicBoxes.connect(person)
+            await expectRevert(
+                myMagicBoxes.purchase(4, 1),
+                'MonstropolyMagicBoxesShop: wrong 0 price'
+            )
+		})
+
+        it('reverts if trying to buy a box with price 0', async () => {
+			//signerWallet
+			myErc20 = myErc20.connect(person)
+			const paymaster = await myRelayer.paymaster()
+			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
+			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+			await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			//purchase
+		    await myMagicBoxes.updateMagicBox(0, [0], ether('0'), myErc20.address, ether('20'), ether('80'), false)
+            await expectRevert(
+                myMagicBoxes.purchase(0, 1),
+                'MonstropolyMagicBoxesShop: wrong 0 price'
+            )
+		})
+
+        it('reverts if trying to buy a box with amount 0', async () => {
+			//signerWallet
+			myErc20 = myErc20.connect(person)
+			const paymaster = await myRelayer.paymaster()
+			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
+			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+			await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			//purchase
+			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
+			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
+			myMagicBoxes = myMagicBoxes.connect(person)
+            await expectRevert(
+                myMagicBoxes.purchase(0, 0),
+                'MonstropolyMagicBoxesShop: wrong 0 price'
+            )
+		})
+
+        it('reverts if trying to open without balance', async () => {
+            await expectRevert(
+                myMagicBoxes.open(0, false),
+                'MonstropolyMagicBoxesShop: amount exceeds balance'
+            )
 		})
 	})
 })

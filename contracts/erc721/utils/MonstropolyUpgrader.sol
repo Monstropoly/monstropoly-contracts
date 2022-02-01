@@ -10,17 +10,18 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
-import "../../utils/ERC20Charger.sol";
+import "../../utils/CoinCharger.sol";
 import "../../shared/IMonstropolyDeployer.sol";
+import "../../shared/IMonstropolyUpgrader.sol";
 
-contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, ERC20Charger {
+/// @title The contract for MonstropolyUpgrader
+/// @notice Upgrades Monstropoly's NFTs rarity
+/// @dev Burns and mints a new NFT with upgraded rarity
+contract MonstropolyUpgrader is IMonstropolyUpgrader, AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, CoinCharger {
 
     string public override versionRecipient = "2.4.0";
 
     mapping(uint => uint256) public upgradePrices;
-
-    event HeroUpgraded(address indexed who, uint256 heroId, uint256[5] oldHeroes);
-    event UpdatePrice(uint256 price, uint index);
 
     function initialize() public /** TBD: initializer */ { 
         __AccessControlProxyPausable_init(msg.sender);
@@ -32,41 +33,26 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
         _updatePrice(5000 ether, 4);
     }
 
-    function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
-        return BaseRelayRecipient._msgSender();
-    }
-
-    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes calldata) {
-        return BaseRelayRecipient._msgData();
-    }
-
-    function setTrustedForwarder(address _forwarder) public /*onlyRole(DEPLOYER)*/ {
-        _setTrustedForwarder(_forwarder);
-    }
-
-    function price(uint256 heroId) public view returns(uint256){
+    /// @inheritdoc IMonstropolyUpgrader
+    function price(uint256 tokenId) public view returns(uint256){
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
         IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
-        IMonstropolyFactory.Token memory _token = factory.tokenOfId(heroId);
+        IMonstropolyFactory.Token memory _token = factory.tokenOfId(tokenId);
         uint _rarity = data.getRarityByGen(_token.genetic);
         return upgradePrices[_rarity];        
     }
 
+    /// @inheritdoc IMonstropolyUpgrader
+    function setTrustedForwarder(address _forwarder) public /*onlyRole(DEPLOYER)*/ {
+        _setTrustedForwarder(_forwarder);
+    }
+
+    /// @inheritdoc IMonstropolyUpgrader
     function updatePrices(uint256[] memory prices) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _updatePrices(prices);
     }
 
-    function _updatePrices(uint256[] memory prices) private {
-        for (uint i = 0; i < prices.length; i++) {
-            _updatePrice(prices[i], i);
-        }
-    }
-
-    function _updatePrice(uint price_, uint index_) private {
-        upgradePrices[index_] = price_;
-        emit UpdatePrice(price_, index_);
-    }
-
+    /// @inheritdoc IMonstropolyUpgrader
     function upgrade(
         uint256[5] memory _tokens,
         int _clone // -1 to do it randomly
@@ -85,16 +71,15 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
         }
 
         _preUpgrade(_assets, _rarities);
-        uint256 _heroId = _clone == -1 ? _processUpgrade(_assets[0], _rarities[0], "") : _processUpgrade(_assets[0], _rarities[0], factory.tokenOfId(_tokens[uint(_clone)]).genetic);
+        uint256 _tokenId = _clone == -1 ? _processUpgrade(_assets[0], _rarities[0], "") : _processUpgrade(_assets[0], _rarities[0], factory.tokenOfId(_tokens[uint(_clone)]).genetic);
 
-        //TBD: consider a burnFrom
-        factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[0]);
-        factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[1]);
-        factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[2]);
-        factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[3]);
-        factory.transferFrom(_msgSender(), address(0x000000000000000000000000000000000000dEaD), _tokens[4]);
+        factory.burn(_tokens[0]);
+        factory.burn(_tokens[1]);
+        factory.burn(_tokens[2]);
+        factory.burn(_tokens[3]);
+        factory.burn(_tokens[4]);
 
-        emit HeroUpgraded(_msgSender(), _heroId, _tokens);
+        emit TokenUpgraded(_msgSender(), _tokenId, _tokens);
     }
 
     function _processUpgrade(
@@ -117,14 +102,14 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
             _gen = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).cloneAttributesFrom(_gen, _cloneGen);
         }
 
-        uint256 _heroId = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY"))).mint(_msgSender(), _gen);
+        uint256 _tokenId = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY"))).mint(_msgSender(), _gen);
         _transferFrom(
             IMonstropolyDeployer(config).get(keccak256("ERC20")),
             _msgSender(),
             IMonstropolyDeployer(config).get(keccak256("UPGRADER_WALLET")), //TBD: ask right wallet/burn
             _upgradePrice
         );
-        return _heroId;
+        return _tokenId;
     }
     
     function _preUpgrade(
@@ -136,4 +121,21 @@ contract MonstropolyUpgrader is AccessControlProxyPausable, UUPSUpgradeableByRol
             require(_rarities[i] == _rarities[0], "MonstropolyUpgrader: inconsistent rarity");    
         }
     }
+
+    function _updatePrices(uint256[] memory prices) private {
+        for (uint i = 0; i < prices.length; i++) {
+            _updatePrice(prices[i], i);
+        }
+    }
+
+    function _updatePrice(uint price_, uint index_) private {
+        upgradePrices[index_] = price_;
+        emit UpdatePrice(price_, index_);
+    }
+
+    function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
+        return BaseRelayRecipient._msgSender();
+    }
+
+    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes memory _bytes) {}
 }

@@ -61,7 +61,7 @@ contract MonstropolyDistributor {
     }
 
     function finish() public {
-        require(msg.sender == vault);
+        require(msg.sender == vault, "MonstropolyDistributor: only vault can finish it");
         initial = released();
         endBlock = startBlock;
         cliff = 0;

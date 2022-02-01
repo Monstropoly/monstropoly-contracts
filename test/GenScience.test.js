@@ -28,6 +28,7 @@ const SALT_RARITY_2_INF_VIP = '7777777777BF0767777779999999999999991234782454765
 const SALT_RARITY_2_SUP_VIP = '7777777777EEC937777779999999999999991234978067765678999999111111111111111111987654987654987654987654'
 const SALT_RARITY_3_INF_VIP = '7777777777EEC947777779999999999999991234978068765678999999111111111111111111987654987654987654987654'
 const SALT_OVERFLOW =         '7777777777fffff7777779999999999999991234978068765678999999111111111111111111987654987654987654987654'
+const SALT_LONG =         '7777777777fffff7777779999999999999991234978068765678999999111111111111111111987654987654987654987654111'
 
 let myData, myFactory, myBreeder, myScience, myDeployer
 
@@ -157,6 +158,17 @@ describe('MonstropolyGenScience', function () {
 			expect(decType).to.eq(type)
 			expect(decRarity).to.eq(rarity)
 		})
+        it('can generate a random gen with fixed asset and type', async () => {
+			let asset = 0
+			let type = 5
+			let rarity = 4
+			let gen = await myScience.generateFromRootView([asset, type, rarity], [true, true, false], SALT, false);
+			let dec = await myData.deconstructGen(gen.gen_)
+			let decAsset = dec._asset.random % dec._asset.module
+			let decType = dec._type.random % dec._type.module
+			expect(decAsset).to.eq(asset)
+			expect(decType).to.eq(type)
+		})
 		it('given a gen it can set stat 0', async () => {
 			let asset = 0
 			let type = 5
@@ -225,6 +237,35 @@ describe('MonstropolyGenScience', function () {
             await expectRevert(
                 myScience.generateAssetView(0, SALT_OVERFLOW, false),
                 'MonstropolyData: rarity too high'
+            )
+		})
+
+        it('cannot generate a random gen with rarity > 999999 (because of hex)', async () => {
+            await expectRevert(
+                myScience.generateAssetView(0, SALT_OVERFLOW, true),
+                'MonstropolyData: rarity too high'
+            )
+		})
+
+        it('cannot generate a gen if random length is wrong', async () => {
+            await expectRevert(
+                myScience.generateAssetView(0, SALT_LONG, true),
+                'MonstropolyGenScience: invalid random length'
+            )
+		})
+
+        it('cannot set random length is wrong', async () => {
+            await expectRevert(
+                myScience.setRandom(SALT_LONG),
+                'MonstropolyGenScience: invalid random length'
+            )
+		})
+
+        it('cannot set random and use it in dif blocks', async () => {
+            await myScience.setRandom(SALT) 
+            await expectRevert(
+                myScience.generateAsset(0, false),
+                'GenScience: wrong randomBlock'
             )
 		})
 	})

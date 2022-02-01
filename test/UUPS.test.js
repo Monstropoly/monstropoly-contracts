@@ -31,8 +31,8 @@ describe('UUPS', function () {
         const response = await myDeployer.deploy(ethers.utils.id('UUPSMOCK'), UUPSUpgradeableMock.bytecode, emptyInitializableData)
         const receipt = await response.wait()
         const proxy = await myDeployer.get(ethers.utils.id('UUPSMOCK'))
-        const proxyAddress = receipt.events[1].args.proxy
-        const impAddress = receipt.events[1].args.implementation
+        const proxyAddress = receipt.events[2].args.proxy
+        const impAddress = receipt.events[2].args.implementation
         myProxy = await ERC1967Proxy.attach(proxyAddress)
         myUpgradeableProxy = await UUPSUpgradeableMock.attach(proxyAddress)
         myUpgradeableImp = await UUPSUpgradeableMock.attach(impAddress)
@@ -43,7 +43,9 @@ describe('UUPS', function () {
         it('proxy has right implementation address', async () => {
             let implementationEncoded = await ethers.provider.getStorageAt(myProxy.address, _IMPLEMENTATION_SLOT)
             let implementation = ethers.utils.defaultAbiCoder.decode(['address'], implementationEncoded)
+            let callImplementation = await myUpgradeableProxy.implementation()
             expect(implementation[0]).to.equal(myUpgradeableImp.address)
+            expect(implementation[0]).to.equal(callImplementation)
         });
         it('proxy delegates on right implementation', async () => {
             let version = await myUpgradeableProxy.version()
@@ -57,6 +59,11 @@ describe('UUPS', function () {
             const setVersionData = await UUPSNotUpgradeableMock.interface.encodeFunctionData('setVersion', ['UUPSNotUpgradeableMock'])
             myDeployer = await Deployer.at(myDeployer.address)
             const response = await myDeployer.deploy(ethers.utils.id('UUPSMOCK'), UUPSNotUpgradeableMock.bytecode, setVersionData)
+            const impAddress = response.logs[0].args.implementation
+            const myNotUpgradeableProxy = await UUPSNotUpgradeable.at(myUpgradeableProxy.address)
+            let callImplementation = await myNotUpgradeableProxy.implementation()
+            expect(impAddress).to.equal(callImplementation)
+
             expectEvent(response, 'Deployment', {
                 proxy: myProxy.address,
                 upgrade: true

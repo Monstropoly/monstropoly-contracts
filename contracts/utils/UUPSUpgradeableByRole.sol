@@ -13,4 +13,10 @@ contract UUPSUpgradeableByRole is AccessControlProxyPausable, UUPSUpgradeable {
         onlyRole(UPGRADER_ROLE)
         override
     {}
+
+    /// @notice Returns the address of the proxy's implementation
+    /// @return Address of current implementation
+    function implementation () public view returns (address) {
+        return _getImplementation();
+    }
 }

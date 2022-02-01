@@ -2,7 +2,7 @@ const { getWhitelistTree, solKeccak256 } = require('../utils/whitelistTree')
 const hre = require('hardhat')
 const { ethers } = require('hardhat');
 const {
-  ether, time, expectRevert
+  ether, time, expectRevert, expectEvent
 } = require('@openzeppelin/test-helpers')
 const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 const { artifacts } = require('hardhat');
@@ -10,6 +10,7 @@ const { expect } = require('chai');
 const { formatEther } = require('@ethersproject/units');
 const { getBalanceTree } = require('../utils/balanceTree');
 const { BigNumber } = require('@ethersproject/bignumber');
+const { id } = require('ethers/lib/utils');
 const Deployer = artifacts.require('MonstropolyDeployer')
 const ERC20 = artifacts.require('MonstropolyERC20')
 const Staking = artifacts.require('MonstropolyStaking')
@@ -132,7 +133,7 @@ describe('Distribution', function () {
     await myDistributionVault.createDistributor(solKeccak256("PS"), nBlocks(currentBlock, 0) , nBlocks(currentBlock, 13), '1', ether('5400000'), ether('54000000'), privateTree.merkleRoot, '')
     await myDistributionVault.createDistributor(solKeccak256("MARKETING"), nBlocks(currentBlock, 1) , nBlocks(currentBlock, 37), '0',ether('10500000'), ether('70000000'), marketingTree.merkleRoot, '')
     await myDistributionVault.createDistributor(solKeccak256("TEAM"), nBlocks(currentBlock, 6) , nBlocks(currentBlock, 18), '0', ether('0'), ether('105000000'), teamTree.merkleRoot, '')
-    await myDistributionVault.createRewards(RewardsDistributor.bytecode, nBlocks(currentBlock, 0) , nBlocks(currentBlock, 60), nBlocks(currentBlock, 12), ether('120000000'), ether('108000000'))
+    await myDistributionVault.createRewards(RewardsDistributor.bytecode, nBlocks(currentBlock, 20) , nBlocks(currentBlock, 60), nBlocks(currentBlock, 30), ether('120000000'), ether('108000000'))
 
     const [erc20, staking, farming, seedDist, privateDist, marketingDist, teamDist, rewardsDist] = await Promise.all([
       myDeployer.get(solKeccak256("ERC20")),
@@ -156,7 +157,7 @@ describe('Distribution', function () {
   })
 
   describe('Distributor', () => {
-    it('person can claim on seed distributor', async () => {
+    it('can claim on seed distributor', async () => {
       const released = await mySeedDist.released()
       const claim = seedTree.claims[person]
       const allocation = claim.amount
@@ -172,7 +173,19 @@ describe('Distribution', function () {
       ])
       expect(balance.toString()).to.eq(claimed.toString())
     })
-    it('owner can claim on team distributor', async () => {
+    it('cannot claim if invalid proof', async () => {
+      const released = await mySeedDist.released()
+      const claim = seedTree.claims[person]
+      const allocation = claim.amount
+      const expected = released.mul(ether(BigNumber.from(allocation).div(BigNumber.from('1000000000000000000')).toString())).div(ether('100'))
+      const pending = await mySeedDist.pending(claim.index, person, claim.amount, claim.proof)
+
+      expect(pending.toString()).to.eq(expected.toString())
+
+      await expectRevert(mySeedDist.claim(claim.index, owner, claim.amount, claim.proof), "MonstropolyDistributor: invalid proof.")
+
+    })
+    it('can claim on team distributor', async () => {
       const claim = teamTree.claims[owner]
       const teamEndBlock = Number((await myTeamDist.endBlock()).toString())
       await time.advanceBlockTo(teamEndBlock)
@@ -249,6 +262,13 @@ describe('Distribution', function () {
 
       await expectRevert(myVault.claim(claim.index, owner, claim.amount, claim.proof), 'MonstropolyDistributor: nothing to claim.')
     })
+    it('cannot finish if not vault', async () => {
+      await expectRevert(mySeedDist.finish(), "MonstropolyDistributor: only vault can finish it")
+    })
+    it('cannot create distributor where startblock exceeds endblock', async () => {
+      const currentBlock = await time.latestBlock()
+      await expectRevert(myDistributionVault.createDistributor(solKeccak256("MYDIST"), nBlocks(currentBlock, 10) , nBlocks(currentBlock, 0), '1', ether('1125000'), ether('15000000'), teamTree.merkleRoot, ''), "MonstropolyDistributor: endBlock must exceed startBlock")
+    })
   })
 
   describe('DistributionVault', () => {
@@ -320,6 +340,19 @@ describe('Distribution', function () {
       expect(etherToNumber(balanceOwner) + etherToNumber(balancePerson) + etherToNumber(balancePerson2)).to.approximately(etherToNumber(total), 0.0000001)
       
     })
+    it('cannot migrate after endblock', async () => {
+      const initial = ether('50')
+      const total = ether('100')
+      const currentBlock = await time.latestBlock()
+      await myDistributionVault.createDistributor(solKeccak256("MY_VAULT"), nBlocks(currentBlock, 0) , nBlocks(currentBlock, 20), 5, initial, total, teamTree.merkleRoot, '')
+      const distributor = await myDeployer.get(solKeccak256('MY_VAULT'))
+      const myDistributor = await Distributor.at(distributor)
+      const end = await myDistributor.endBlock()
+      await time.advanceBlockTo(Number(end.toString()))
+
+      await expectRevert(myDistributionVault.migrateDistributor(solKeccak256("MY_VAULT"), solKeccak256("MY_VAULT2"), teamTree.merkleRoot, ''), "MonstropolyDistributionVault: cannot migrate a finished distributor")
+      
+    })
     it('all released at the end of rewards', async () => {
       const endBlock = Number((await myRewardsDist.endBlock()).toString())
       await time.advanceBlockTo(endBlock)
@@ -344,7 +377,6 @@ describe('Distribution', function () {
       expect(etherToNumber(teamReleased)).to.eq(etherToNumber(teamAllocated))
       expect(etherToNumber(rewardsReleased)).to.eq(etherToNumber(rewardsAllocated))
     })
-
     it('assignation exceeds cap', async () => {
       const assigned = await myDistributionVault.assigned()
       const cap = await myErc20.cap()
@@ -356,9 +388,79 @@ describe('Distribution', function () {
         'MonstropolyDistributionVault: assignation exceeds cap'
       )
     })
+    it('cannot distribute if not available', async () => {
+      await expectRevert(myDistributionVault.distribute(owner, ONE_ETHER), "MonstropolyDistributionVault: no tokens available")
+    })
+    it('cannot exceed cap on creation', async () => {
+      const currentBlock = await time.latestBlock()
+      await expectRevert(myDistributionVault.createRewards(RewardsDistributor.bytecode, nBlocks(currentBlock, 20) , nBlocks(currentBlock, 60), nBlocks(currentBlock, 30), ether('120000000'), ether('108000000')), "MonstropolyDistributionVault: assignation exceeds cap")
+    })
   })
 
   describe('RewardsDistributor', () => {
+    it('cannot create rewards distributor if already created', async () => {
+      const currentBlock = await time.latestBlock()
+      await expectRevert(
+        myDistributionVault.createRewards(RewardsDistributor.bytecode, nBlocks(currentBlock, 20) , nBlocks(currentBlock, 60), nBlocks(currentBlock, 30), ether('0'), ether('0')),
+        "MonstropolyDistributionVault: rewards distributor already created"
+      )
+    })
+    it('cannot update rewards if distributor not created', async () => {
+      await myDeployer.grantRole(id('REWARDS_UPDATER_ROLE'), owner)
+      const distributionVaultFactory = await ethers.getContractFactory('MonstropolyDistributionVault')
+      let calldataDistributionVault = distributionVaultFactory.interface.encodeFunctionData('initialize', []);
+      await myDeployer.deploy(solKeccak256("NEW"), DistributionVault.bytecode, calldataDistributionVault)
+      const vault = await myDeployer.get(id('NEW'))
+      const newVault = await DistributionVault.at(vault)
+
+      const expStaking = ether('10')
+      const expStakingNFT = ether('40')
+      const expFarming = ether('40')
+      const expP2E = ether('10')
+
+      await expectRevert(newVault.updateRewards([expStaking, expStakingNFT, expFarming, expP2E]), "MonstropolyDistributionVault: rewards distributor not created yet")
+    })
+    it('cannot update if aggregate != 100 ether', async () => {
+      await myDeployer.grantRole(id('REWARDS_UPDATER_ROLE'), owner)
+      const expStaking = ether('10')
+      const expStakingNFT = ether('30')
+      const expFarming = ether('40')
+      const expP2E = ether('10')
+
+      await expectRevert(
+        myDistributionVault.updateRewards([expStaking, expStakingNFT, expFarming, expP2E]),
+        'MonstropolyDistributionVault: rewards update failed'
+      )
+    })
+    it('only vault can update allocations', async () => {
+      const expStaking = ether('10')
+      const expStakingNFT = ether('30')
+      const expFarming = ether('40')
+      const expP2E = ether('10')
+      await expectRevert(
+        myRewardsDist.updateAllocations([expStaking, expStakingNFT, expFarming, expP2E]),
+        'MonstropolyRewardsDistributor: only vault can update allocations'
+      )
+    })
+    it('can update rewards if REWARDS_UPDATER_ROLE from vault', async () => {
+      await myDeployer.grantRole(id('REWARDS_UPDATER_ROLE'), owner)
+      const expStaking = ether('10')
+      const expStakingNFT = ether('40')
+      const expFarming = ether('40')
+      const expP2E = ether('10')
+
+      await myDistributionVault.updateRewards([expStaking, expStakingNFT, expFarming, expP2E])
+      const [stakingAlloc, stakingNFTAlloc, farmingAlloc, p2eAlloc] = await Promise.all([
+        myRewardsDist.allocation(id('STAKING')),
+        myRewardsDist.allocation(id('STAKING_NFT')),
+        myRewardsDist.allocation(id('FARMING')),
+        myRewardsDist.allocation(id('P2E'))
+      ])
+      expect(etherToNumber(expStaking)).to.eq(etherToNumber(stakingAlloc))
+      expect(etherToNumber(expStakingNFT)).to.eq(etherToNumber(stakingNFTAlloc))
+      expect(etherToNumber(expFarming)).to.eq(etherToNumber(farmingAlloc))
+      expect(etherToNumber(expP2E)).to.eq(etherToNumber(p2eAlloc))
+    }) 
     it('check values', async () => {
       const [rewardPerBlock, increment, start, end, change] = await Promise.all([
         myRewardsDist.rewardPerBlock(),
@@ -425,6 +527,13 @@ describe('Distribution', function () {
       expect(etherToNumber(totalReleased)).to.eq(etherToNumber(allocated))
       expect(etherToNumber(availableVaultBefore) - etherToNumber(availableVaultAfter)).to.eq(etherToNumber(expectedBalance))
       expect(etherToNumber(releasedRewards) - etherToNumber(availableRewardsAfter)).to.eq(etherToNumber(expectedBalance))
-    }) 
+    })
+    it('check release zero before start', async () => {
+      const released = await myRewardsDist.released()
+      expect(etherToNumber(released)).to.eq(0)
+    })
+    it('cannot distribute if amount exceeds available', async () => {
+      await expectRevert(myRewardsDist.distribute(owner, ONE_ETHER), "MonstropolyRewardsDistributor: amount exceeds available")
+    })
   })
 })

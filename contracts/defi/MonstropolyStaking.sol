@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../shared/IMonstropolyERC20.sol";
 import "../shared/IMonstropolyRewardsDistributor.sol";
 import "../shared/IMonstropolyDeployer.sol";
 
-contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole {
+contract MonstropolyStaking is UUPSUpgradeableByRole {
 
     bool public autoreward;
 
@@ -47,9 +46,6 @@ contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole
     event Migrate(address from, address to, address account, uint256 amount, bytes response);
 
     function _update() internal {
-      if (block.number <= lastUpdate) {
-        return;
-      }
       IMonstropolyRewardsDistributor rewardsInterface = IMonstropolyRewardsDistributor(IMonstropolyDeployer(config).get(keccak256("REWARDS")));
       uint256 released = rewardsInterface.released(IMonstropolyDeployer(config).name(address(this))) - _released;
       _released += released;
@@ -62,7 +58,8 @@ contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole
     // Sets maximum and minimum fees
     function setFees(uint256 minFee_, uint256 maxFee_) public onlyRole(DEFAULT_ADMIN_ROLE) {
       require(minFee_ <= maxFee_, "MonstropolyStaking: mininum fee must be greater or equal than maximum fee");
-      require(minFee_ <= 1e20 && maxFee_ <= 1e20, "MonstropolyStaking: fees must be less than 100e18");
+      require(minFee_ <= 1e20, "MonstropolyStaking: minFee cannot exceed 100 ether");
+      require(maxFee_ <= 1e20, "MonstropolyStaking: maxFee cannot exceed 100 ether");
       minFee = minFee_;
       maxFee = maxFee_;
       emit SetFees(minFee, maxFee);
@@ -104,8 +101,8 @@ contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole
 
       IMonstropolyERC20 tokenInterface = IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20")));
 
-      require(tokenInterface.balanceOf(account) >= amount, "MonstropolyStaking: user has not enough balance");
-      require(tokenInterface.allowance(account, address(this)) >= amount, "MonstropolyStaking: amount exceeds allowance");
+      // require(tokenInterface.balanceOf(account) >= amount, "MonstropolyStaking: user has not enough balance");
+      // require(tokenInterface.allowance(account, address(this)) >= amount, "MonstropolyStaking: amount exceeds allowance");
 
       if(autoreward) {
         _reward(account);
@@ -284,7 +281,7 @@ contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole
     }
 
     function lastReward() public view returns (uint256) {
-      
+
       IMonstropolyRewardsDistributor rewardsInterface = IMonstropolyRewardsDistributor(IMonstropolyDeployer(config).get(keccak256("REWARDS")));
 
       if(block.number > rewardsInterface.startBlock() && block.number < rewardsInterface.endBlock()) {
@@ -296,7 +293,7 @@ contract MonstropolyStaking is AccessControlProxyPausable, UUPSUpgradeableByRole
           }
           return reward * rewardsInterface.allocation(IMonstropolyDeployer(config).name(address(this))) / 100 ether;
       } else {
-          return 0;
+        return 0;
       }
     }
 }

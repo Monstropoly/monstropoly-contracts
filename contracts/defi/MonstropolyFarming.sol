@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "../shared/IMonstropolyRewardsDistributor.sol";
 import "../shared/IMonstropolyDeployer.sol";
 
-contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole {
+contract MonstropolyFarming is UUPSUpgradeableByRole {
 
-    address public lp;
     bool public autoreward;
 
     uint256 public balance;
@@ -38,9 +36,6 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
     event Migrate(address from, address to, address account, uint256 amount, bytes response);
 
     function _update() internal {
-      if (block.number <= lastUpdate) {
-        return;
-      }
       IMonstropolyRewardsDistributor rewardsInterface = IMonstropolyRewardsDistributor(IMonstropolyDeployer(config).get(keccak256("REWARDS")));
       uint256 released = rewardsInterface.released(IMonstropolyDeployer(config).name(address(this))) - _released;
       _released += released;
@@ -74,10 +69,10 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
       user.amount += amount;
       balance += amount;
 
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
 
-      require(tokenInterface.balanceOf(account) >= amount, "MonstropolyFarming: user has not enough balance");
-      require(tokenInterface.allowance(account, address(this)) >= amount, "MonstropolyFarming: amount exceeds allowance");
+      // require(tokenInterface.balanceOf(account) >= amount, "MonstropolyFarming: user has not enough balance");
+      // require(tokenInterface.allowance(account, address(this)) >= amount, "MonstropolyFarming: amount exceeds allowance");
 
       if(autoreward) {
         _reward(account);
@@ -110,13 +105,13 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
         stakers -= 1;
       }
 
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
 
       if(autoreward) {
         _reward(account);
       }
 
-      require(tokenInterface.transfer(account, amount), "MonstropolyFarming: withdraw transfer failed");
+      tokenInterface.transfer(account, amount);
 
       emit Update(balance, accRewardsPerShare, lastUpdate, stakers);
       emit UpdateUserInfo(account, user.amount, user.rewardDebt, user.notClaimed);
@@ -184,7 +179,7 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
 
         // Gets token gap
     function getTokenGap() public view returns (uint256) {
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
       uint256 tokenBalance = tokenInterface.balanceOf(address(this));
       if(tokenBalance > balance) {
         return tokenBalance - balance;
@@ -195,7 +190,7 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
 
         // Synchronizes balance, transfering the gap to an external account
     function syncBalance(address account) public onlyRole(DEFAULT_ADMIN_ROLE) {
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
       uint256 gap = getTokenGap();
       require(gap > 0, "MonstropolyFarming: there is no gap");
       tokenInterface.transfer(account, gap);
@@ -219,14 +214,10 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
       return response;
     }
 
-    function setLP(address newLP) public onlyRole(DEFAULT_ADMIN_ROLE) {
-      lp = newLP;
-    }
-
     function emergencyWithdraw() whenPaused public returns (uint256) {
       uint256 amount = getUserBalance(msg.sender);
       require(amount > 0, "MonstropolyFarming: no tokens to withdraw");
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
       _userInfo[msg.sender].amount -= amount;
       balance -= amount;
       tokenInterface.transfer(msg.sender, amount);
@@ -234,7 +225,7 @@ contract MonstropolyFarming is AccessControlProxyPausable, UUPSUpgradeableByRole
     }
 
     function depositAll(address account) public {
-      IERC20Upgradeable tokenInterface = IERC20Upgradeable(lp);
+      IERC20Upgradeable tokenInterface = IERC20Upgradeable(IMonstropolyDeployer(config).get(keccak256("LP_TOKEN")));
       uint256 amount = tokenInterface.balanceOf(account);
       depositFrom(account, amount);
     }

@@ -12,10 +12,13 @@ contract MonstropolyDistributionVault is UUPSUpgradeableByRole {
     mapping(address=>uint256) public distributed;
     mapping(address=>uint256) public allocated;
 
+    address public rewardsDistributor;
     uint256 public assigned;
 
     event DistributeTokens(address distributor, address account, uint256 amount);
     event Creation(bytes32 id, address implementation);
+
+    bytes32 public constant REWARDS_UPDATER = keccak256("REWARDS_UPDATER_ROLE");
 
     function initialize ()  public initializer
     {
@@ -39,7 +42,7 @@ contract MonstropolyDistributionVault is UUPSUpgradeableByRole {
         _createDistributor(id, startBlock, endBlock, cliff, initial, total, merkleRoot, uri);
     }
 
-    function _createDistributor(bytes32 id, uint startBlock, uint endBlock, uint cliff, uint256 initial, uint256 total, bytes32 merkleRoot, string memory uri) public {
+    function _createDistributor(bytes32 id, uint startBlock, uint endBlock, uint cliff, uint256 initial, uint256 total, bytes32 merkleRoot, string memory uri) internal {
         MonstropolyDistributor distributor = new MonstropolyDistributor(startBlock, endBlock, cliff, initial, total, merkleRoot, uri);
         address distributorAddress = address(distributor);
         IMonstropolyDeployer(config).setId(id, distributorAddress);
@@ -69,27 +72,27 @@ contract MonstropolyDistributionVault is UUPSUpgradeableByRole {
 
     }
 
-    // function createRewards(uint startBlock, uint endBlock, uint changeBlock, uint256 amountA, uint256 amountB) public onlyRole(DEFAULT_ADMIN_ROLE) {
-    //     require(assigned + amountA + amountB <= IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20"))).cap(), "MonstropolyDistributionVault: assignation exceeds cap");
-    //     assigned += amountA + amountB;
-    //     MonstropolyRewardsDistributor distributor = new MonstropolyRewardsDistributor(startBlock, endBlock, changeBlock, amountA, amountB);
-    //     address distributorAddress = address(distributor);
-    //     IMonstropolyDeployer(config).setId(keccak256("REWARDS"), distributorAddress);
-    //     allocated[distributorAddress] = amountA + amountB;
-    // }
-
     function createRewards(bytes memory bytecode, uint startBlock, uint endBlock, uint changeBlock, uint256 amountA, uint256 amountB) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(assigned + amountA + amountB <= IMonstropolyERC20(IMonstropolyDeployer(config).get(keccak256("ERC20"))).cap(), "MonstropolyDistributionVault: assignation exceeds cap");
+        require(rewardsDistributor == address(0), "MonstropolyDistributionVault: rewards distributor already created");
+        
         assigned += amountA + amountB;
-        address implementation;
+
         bytes memory creationCode = abi.encodePacked(bytecode, startBlock, endBlock, changeBlock, amountA, amountB);
 
         assembly {
-            implementation := create(0, add(creationCode, 32), mload(creationCode))
+            sstore(rewardsDistributor.slot, create(0, add(creationCode, 32), mload(creationCode))) 
         }
 
-        IMonstropolyDeployer(config).setId(keccak256("REWARDS"), implementation);
-        allocated[implementation] = amountA + amountB;
-        emit Creation(keccak256("REWARDS"), implementation);
+        IMonstropolyDeployer(config).setId(keccak256("REWARDS"), rewardsDistributor);
+        allocated[rewardsDistributor] = amountA + amountB;
+        emit Creation(keccak256("REWARDS"), rewardsDistributor);
+    }
+
+    function updateRewards(uint72[4] memory allocations) public onlyRole(REWARDS_UPDATER) returns(bytes memory) {
+        require(rewardsDistributor != address(0), "MonstropolyDistributionVault: rewards distributor not created yet");
+        (bool success, bytes memory result) = rewardsDistributor.call(abi.encodeWithSignature("updateAllocations(uint72[4])", allocations));
+        require(success, "MonstropolyDistributionVault: rewards update failed");
+        return result;
     }
 }

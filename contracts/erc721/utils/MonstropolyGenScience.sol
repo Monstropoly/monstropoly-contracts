@@ -3,18 +3,22 @@ pragma solidity 0.8.9;
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "../../shared/IMonstropolyData.sol";
 import "../../shared/IMonstropolyDeployer.sol";
+import "../../shared/IMonstropolyGenScience.sol";
 import "../../shared/IMonstropolyFactory.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
 import "../../utils/CodificationConverter.sol";
 
-contract MonstropolyGenScience is AccessControlProxyPausable, UUPSUpgradeableByRole, CodificationConverter {
+/// @title The contract for MonstropolyGenScience
+/// @notice Creates NFT's genetics
+/// @dev Creates genetics from a random base
+contract MonstropolyGenScience is IMonstropolyGenScience, AccessControlProxyPausable, UUPSUpgradeableByRole, CodificationConverter {
 
     string public random;
     uint public randomBlock;
 
     modifier newRandom() {
-        require((randomBlock == block.number && bytes(random).length != 0), "GenScience: wrong random");
+        require(randomBlock == block.number, "GenScience: wrong randomBlock");
         _;
     }
 
@@ -22,14 +26,36 @@ contract MonstropolyGenScience is AccessControlProxyPausable, UUPSUpgradeableByR
         __AccessControlProxyPausable_init(msg.sender);
     }
 
+    /// @inheritdoc IMonstropolyGenScience
+    function generateAssetView(uint asset_, string memory random_, bool vip_) public view returns(string memory gen_, bool free_) {
+        gen_ = _generateAssetView(asset_, random_, vip_, false);
+        free_ = _isGenFree(gen_);
+    }
+
+    /// @inheritdoc IMonstropolyGenScience
+    function generateFromRootView(uint[3] memory rootValues_, bool[3] memory preFixed_, string memory random_, bool vip_) public view returns(string memory gen_, bool free_) {
+        gen_ = _generateFromRootView(rootValues_, preFixed_, random_, vip_);
+        free_ = _isGenFree(gen_); 
+    }
+
+    /// @inheritdoc IMonstropolyGenScience
     function generateAsset(uint asset_, bool vip_) public newRandom() returns(string memory gen_) {
         gen_ = _generateAssetView(asset_, random, vip_, false);
         _resetRandom();
     }
 
-    function generateAssetView(uint asset_, string memory random_, bool vip_) public view returns(string memory gen_, bool free_) {
-        gen_ = _generateAssetView(asset_, random_, vip_, false);
-        free_ = _isGenFree(gen_);
+    /// @inheritdoc IMonstropolyGenScience
+    function generateFromRoot(uint[3] memory rootValues_, bool[3] memory preFixed_, bool vip_) public newRandom() returns(string memory gen_) {
+        gen_ = _generateFromRootView(rootValues_, preFixed_, random, vip_);
+        _resetRandom();
+    }
+
+    /// @inheritdoc IMonstropolyGenScience
+    function setRandom(string calldata random_) public /* TBD: onlyRole */ {
+        uint len_ = _getStringsLength();
+        require(bytes(random_).length == len_, "MonstropolyGenScience: invalid random length");
+        random = random_;
+        randomBlock = block.number;
     }
 
     function _generateAssetView(uint asset_, string memory random_, bool vip_, bool preFixedRarity_) internal view returns(string memory gen_) {
@@ -39,18 +65,8 @@ contract MonstropolyGenScience is AccessControlProxyPausable, UUPSUpgradeableByR
         gen_ = _setGenAsset(gen_, _padLeft(asset_, data_.randLength()));
     }
 
-    function generateFromRoot(uint[3] memory rootValues_, bool[3] memory preFixed_, bool vip_) public newRandom() returns(string memory gen_) {
-        gen_ = _generateFromRootView(rootValues_, preFixed_, random, vip_);
-        _resetRandom();
-    }
-
-    function generateFromRootView(uint[3] memory rootValues_, bool[3] memory preFixed_, string memory random_, bool vip_) public view returns(string memory gen_, bool free_) {
-        gen_ = _generateFromRootView(rootValues_, preFixed_, random_, vip_);
-        free_ = _isGenFree(gen_); 
-    }
-
     function _generateFromRootView(uint[3] memory rootValues_, bool[3] memory preFixed_, string memory random_, bool vip_) public view returns(string memory gen_) {
-        (gen_,) = generateAssetView(rootValues_[0], random_, vip_);
+        gen_ = _generateAssetView(rootValues_[0], random_, vip_, preFixed_[2]);
         if (preFixed_[1]) gen_ = _setGenType(gen_, rootValues_[1]);
         if (preFixed_[2]) gen_ = _setGenRarity(gen_, rootValues_[2]);
     }
@@ -91,13 +107,6 @@ contract MonstropolyGenScience is AccessControlProxyPausable, UUPSUpgradeableByR
         uint _randLength = data_.randLength();
         uint _version = data_.version();
         gen_ = string(abi.encodePacked(genRandom_, data_.moduleStrings(asset_), _padLeft(_version, _randLength)));
-    }
-
-    function setRandom(string calldata random_) public /* TBD: onlyRole */ {
-        uint len_ = _getStringsLength();
-        require(bytes(random_).length == len_, "MonstropolyGenScience: invalid random length");
-        random = random_;
-        randomBlock = block.number;
     }
 
     function _getStringsLength() internal view returns(uint) {

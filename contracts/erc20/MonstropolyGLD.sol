@@ -22,9 +22,7 @@ contract MonstropolyGLD is ERC20Upgradeable, AccessControlProxyPausable, UUPSUpg
         return BaseRelayRecipient._msgSender();
     }
 
-    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes calldata) {
-        return BaseRelayRecipient._msgData();
-    }
+    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes memory _bytes) {}
 
     function setTrustedForwarder(address _forwarder) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setTrustedForwarder(_forwarder);
@@ -49,7 +47,7 @@ contract MonstropolyGLD is ERC20Upgradeable, AccessControlProxyPausable, UUPSUpg
     }
 
     function burnFrom(address account, uint256 amount) public {
-        require(_msgSender() == account || allowance(account, _msgSender()) >= amount, "MonstropolyERC20: amount exceeds allowance");
+        require(_msgSender() == account || allowance(account, _msgSender()) >= amount, "MonstropolyGLD: amount exceeds allowance");
         _burn(account, amount);
     }
 }

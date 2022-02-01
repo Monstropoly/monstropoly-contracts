@@ -7,7 +7,7 @@ contract Token is ERC20Upgradeable {
 
     address public owner;
 
-    constructor (string memory name_, string memory symbol_) {
+    constructor (string memory name_, string memory symbol_) initializer {
         __ERC20_init(name_, symbol_);
         owner = msg.sender;
         _mint(owner, 1e28);

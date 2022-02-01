@@ -4,8 +4,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
+import "../shared/IAccessControlProxyPausable.sol";
 
-abstract contract AccessControlProxyPausable is PausableUpgradeable {
+/// @title The contract for AccessControlProxyPausable
+/// @notice Handles roles and pausability of proxies
+/// @dev Roles and addresses are centralized in Deployer
+contract AccessControlProxyPausable is IAccessControlProxyPausable, PausableUpgradeable {
 
     address public config;
 
@@ -25,6 +29,7 @@ abstract contract AccessControlProxyPausable is PausableUpgradeable {
         _;
     }
 
+    /// @inheritdoc IAccessControlProxyPausable
     function hasRole(bytes32 role, address account) public view returns (bool) {
         IAccessControlUpgradeable manager = IAccessControlUpgradeable(config);
         return manager.hasRole(role, account);
@@ -39,14 +44,17 @@ abstract contract AccessControlProxyPausable is PausableUpgradeable {
         config = config_;
     }
 
+    /// @inheritdoc IAccessControlProxyPausable
     function pause() public onlyRole(PAUSER_ROLE){
         _pause();
     }
-    
+
+    /// @inheritdoc IAccessControlProxyPausable
     function unpause() public onlyRole(PAUSER_ROLE){
         _unpause();
     }
 
+    /// @inheritdoc IAccessControlProxyPausable
     function updateManager(address config_) public onlyRole(DEFAULT_ADMIN_ROLE) {
         config = config_;
     }

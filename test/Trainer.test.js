@@ -177,9 +177,9 @@ describe('Trainer', function () {
             await myFactory.mint(person.address, gen.gen_);
             await (await myFactory.connect(person)).setApprovalForAll(myTrainer.address, true)
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
+            const hero0 = await myFactory.tokenOfId('0')
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.tokenOfId('0')
             const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
@@ -207,9 +207,9 @@ describe('Trainer', function () {
             await myFactory.mint(person.address, gen.gen_);
             await (await myFactory.connect(person)).setApprovalForAll(myTrainer.address, true)
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
+            const hero0 = await myFactory.tokenOfId('0')
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.tokenOfId('0')
             const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
@@ -237,9 +237,9 @@ describe('Trainer', function () {
             await myFactory.mint(person.address, gen.gen_);
             await (await myFactory.connect(person)).setApprovalForAll(myTrainer.address, true)
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
+            const hero0 = await myFactory.tokenOfId('0')
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.tokenOfId('0')
             const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)
@@ -267,9 +267,9 @@ describe('Trainer', function () {
             await myFactory.mint(person.address, gen.gen_);
             await (await myFactory.connect(person)).setApprovalForAll(myTrainer.address, true)
             await (await myMPOLY.connect(person)).approve(myTrainer.address, ethers.constants.MaxUint256)
+            const hero0 = await myFactory.tokenOfId('0')
             await (await myTrainer.connect(person)).trainStat('0', statIndex, increment)
 
-            const hero0 = await myFactory.tokenOfId('0')
             const hero1 = await myFactory.tokenOfId('1')
             const dec0 = await myData.deconstructGen(hero0.genetic)
             const dec1 = await myData.deconstructGen(hero1.genetic)

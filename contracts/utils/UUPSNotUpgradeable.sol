@@ -25,7 +25,9 @@ contract UUPSNotUpgradeable is AccessControlProxyPausable, UUPSUpgradeable {
         require(StorageSlot.getBooleanSlot(bytes32(uint256(keccak256("eip1967.proxy.rollback")) - 1)).value, "UUPSNotUpgradeable: not upgradeable anymore");
     }
 
-        function implementation () public view returns (address) {
+    /// @notice Returns the address of the proxy's implementation
+    /// @return Address of current implementation
+    function implementation () public view returns (address) {
         return _getImplementation();
     }
 }

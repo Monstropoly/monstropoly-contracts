@@ -9,18 +9,18 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
-import "../../utils/ERC20Charger.sol";
+import "../../utils/CoinCharger.sol";
 import "../../shared/IMonstropolyDeployer.sol";
-import "hardhat/console.sol";
+import "../../shared/IMonstropolyTrainer.sol";
 
-contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, ERC20Charger {
+/// @title The contract for MonstropolyTrainer
+/// @notice Increments NFTs stats
+/// @dev Burns and mints a new NFT with incremented stat
+contract MonstropolyTrainer is IMonstropolyTrainer, AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient, CoinCharger {
 
     string public override versionRecipient = "2.4.0";
 
     mapping(uint => mapping(uint => mapping(uint => uint))) public prices; //asset:stat:increment:price
-
-    event UpdatePrice(uint asset, uint statIndex, uint increment, uint price);
-    event TrainStat(uint tokenId, uint statIndex, uint increment, uint price);
 
     function initialize() public initializer {
         __AccessControlProxyPausable_init(msg.sender);
@@ -36,30 +36,19 @@ contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole
         _updatePrice(0, 3, 5, 600 ether);
     }
 
-    function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
-        return BaseRelayRecipient._msgSender();
-    }
-
-    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes calldata) {
-        return BaseRelayRecipient._msgData();
-    }
-
+    /// @inheritdoc IMonstropolyTrainer
     function setTrustedForwarder(address _forwarder) public /*onlyRole(DEPLOYER)*/ {
         _setTrustedForwarder(_forwarder);
     }
 
+    /// @inheritdoc IMonstropolyTrainer
     function updatePrice(uint[] calldata asset_, uint[] calldata statIndex_, uint[] calldata increment_, uint[] calldata price_) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for(uint i = 0; i < asset_.length; i++) {
             _updatePrice(asset_[i], statIndex_[i], increment_[i], price_[i]);
         }
     }
 
-    function _updatePrice(uint asset_, uint statIndex_, uint increment_, uint price_) private {
-        prices[asset_][statIndex_][increment_] = price_;
-        emit UpdatePrice(asset_, statIndex_, increment_, price_);
-    }
-
-    // TBD consider allow train to thirds
+    /// @inheritdoc IMonstropolyTrainer
     function trainStat(uint tokenId_, uint statIndex_, uint increment_) public returns(uint) {
         address account_ = _msgSender();
 
@@ -70,8 +59,7 @@ contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole
         gen_ = data_.incrementStatInGen(gen_, increment_, statIndex_);
         uint asset_ = data_.getAssetByGen(gen_);
 
-        //TBD: consider a burnFrom
-        factory_.transferFrom(account_, address(0x000000000000000000000000000000000000dEaD), tokenId_);
+        factory_.burn(tokenId_);
         uint price_ = prices[asset_][statIndex_][increment_];
         require(price_ > 0, "MonstropolyTrainer: train not allowed");
         _transferFrom(
@@ -85,4 +73,17 @@ contract MonstropolyTrainer is AccessControlProxyPausable, UUPSUpgradeableByRole
         emit TrainStat(tokenId_, statIndex_, increment_, price_);
         return newTokenId_;
     }
+
+    function _updatePrice(uint asset_, uint statIndex_, uint increment_, uint price_) private {
+        prices[asset_][statIndex_][increment_] = price_;
+        emit UpdatePrice(asset_, statIndex_, increment_, price_);
+    }
+
+    /// @inheritdoc BaseRelayRecipient
+    function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
+        return BaseRelayRecipient._msgSender();
+    }
+
+    /// @inheritdoc BaseRelayRecipient
+    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes memory _bytes) {}
 }

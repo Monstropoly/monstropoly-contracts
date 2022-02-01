@@ -142,11 +142,29 @@ describe('MonstropolyData', function () {
                         '1'
                     ],
                     [
-                        MODULES0,
-                        MODULES1
+                        MODULES0
                     ]
                 ),
-                'MonstropolyData: invalid length'
+                'MonstropolyData: lengths doesnt match'
+            )
+        })
+
+        it('can deconstructGen if extra length', async () => {
+            let gen = await myScience.generateAssetView(0, SALT, false)
+            console.log(gen.gen_)
+            await myData.deconstructGen(gen.gen_)
+        })
+
+        it('can deconstructGen if right length', async () => {
+            let gen = await myScience.generateAssetView(0, SALT, false)
+            await myData.deconstructGen(gen.gen_.replace('00001', ''))
+        })
+
+        it('can deconstructGen if right length', async () => {
+            let gen = await myScience.generateAssetView(0, SALT, false)
+            expectRevert(
+                myData.deconstructGen(''),
+                'MonstropolyData: wrong gen length'
             )
         })
     })

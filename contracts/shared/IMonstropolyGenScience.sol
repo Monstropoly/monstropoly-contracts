@@ -1,15 +1,52 @@
 pragma solidity 0.8.9;
 
+/// @title The interface for MonstropolyGenScience
+/// @notice Creates NFT's genetics
+/// @dev Creates genetics from a random base
+interface IMonstropolyGenScience {
 
-interface IMonstropolyGenScience{
-    function generateAsset(uint256 asset, bool _vip) external returns(string memory);
-    function generateAssetView(uint256 asset, uint256 _random, bool _vip) external view returns(string memory gen);
-    function generateType(uint256 asset, uint256 _type, bool _vip) external returns(string memory);
-    function generateTypeView(uint256 asset, uint256 _type, uint256 _random, bool _vip) external view returns(string memory gen);
-    function generateRarity(uint256 asset, uint256 rarity) external returns(string memory);
-    function generateRarityView(uint256 asset, uint256 rarity, uint256 _random) external view returns(string memory gen);
-    function generateFromRoot(uint256[3] memory rootValues, bool[3] memory preFixed, bool _vip) external returns(string memory);
-    function generateFromRootView(uint256[3] memory rootValues, bool[3] memory preFixed, uint256 _random, bool _vip) external view returns(string memory gen);
-    function generateGenView(uint256 _random, string memory _genRoot, string memory _genStats, string memory _genAttributes, bool _vip) external view returns (string memory gen, uint256);
-    function generateGen(string memory _genRoot, string memory _genStats, string memory _genAttributes, bool _vip) external returns (string memory gen);    
+    /// @notice Returns a genetic of certain asset
+    /// @dev Modifies random_ to accomplish expectations
+    /// @param asset_ Desired asset
+    /// @param random_ Base random hexadecimal string
+    /// @param vip_ Used to compute final rarity based on probabilities
+    /// @return gen_ Final NFT genetic
+    /// @return free_ Wether or not genetic is free
+    function generateAssetView(uint asset_, string memory random_, bool vip_) external view returns(string memory gen_, bool free_);
+    
+    /// @notice Returns a genetic of certain asset
+    /// @dev Modifies random_ to accomplish expectations
+    /// @dev Root corresponds to Asset, Type and Rarity
+    /// @param rootValues_ Desired root values
+    /// @param preFixed_ Wether or not want to use rootValues_[x] value
+    /// @param random_ Base random hexadecimal string
+    /// @param vip_ Used to compute final rarity based on probabilities
+    /// @return gen_ Final NFT genetic
+    /// @return free_ Wether or not genetic is free
+    function generateFromRootView(uint[3] memory rootValues_, bool[3] memory preFixed_, string memory random_, bool vip_) external view returns(string memory gen_, bool free_);
+    
+    /// @notice Returns a genetic of certain asset
+    /// @dev Modifies random_ to accomplish expectations
+    /// @dev Uses atomically previously setted random value and resets it
+    /// @param asset_ Desired asset
+    /// @param vip_ Used to compute final rarity based on probabilities
+    /// @return gen_ Final NFT genetic
+    function generateAsset(uint asset_, bool vip_) external returns(string memory gen_);
+    
+    /// @notice Returns a genetic of certain asset
+    /// @dev Modifies random_ to accomplish expectations
+    /// @dev Root corresponds to Asset, Type and Rarity
+    /// @dev Uses atomically previously setted random value and resets it
+    /// @param rootValues_ Desired root values
+    /// @param preFixed_ Wether or not want to use rootValues_[x] value
+    /// @param vip_ Used to compute final rarity based on probabilities
+    /// @return gen_ Final NFT genetic
+    function generateFromRoot(uint[3] memory rootValues_, bool[3] memory preFixed_, bool vip_) external returns(string memory gen_);
+    
+    /// @notice Sets random base value to compute genetic
+    /// @dev Uses it atomically just after setting it
+    /// @dev Also sets randomBlock to be sure is used atomically
+    /// @dev Must match current lengths
+    /// @param random_ Base random hexadecimal string
+    function setRandom(string calldata random_) external; 
 }

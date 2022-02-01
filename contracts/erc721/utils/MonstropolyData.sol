@@ -2,35 +2,15 @@ pragma solidity 0.8.9;
 
 import "../../shared/IMonstropolyFactory.sol";
 import "../../shared/IMonstropolyDeployer.sol";
+import "../../shared/IMonstropolyData.sol";
 import "../../utils/AccessControlProxyPausable.sol";
 import "../../utils/UUPSUpgradeableByRole.sol";
 import "../../utils/CodificationConverter.sol";
 
-contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, CodificationConverter { 
-
-    struct Rarity{
-        uint256 min;
-        uint256 max;
-    }
-
-    struct Value {
-        uint256 random;
-        uint256 module;
-    }
-  
-    struct DeconstructedGen{
-        Value _asset;
-        Value _type;
-        Value _rarity;
-        Value[] _stats;
-        Value[] _attributes;
-    }
-
-    struct GenVersion {
-        uint nStats;
-        uint nAttributes;
-        uint genHalfLength;
-    }
+/// @title The contract MonstropolyData
+/// @notice Handles genetic data
+/// @dev Other contracts use its methods to handle genetic strings
+contract MonstropolyData is IMonstropolyData, AccessControlProxyPausable, UUPSUpgradeableByRole, CodificationConverter { 
 
     uint256 public randLength;
     uint public version;
@@ -65,43 +45,35 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         _setModulesByAsset(1, '000020000600006000640006400064000640000F0000A000000000000000000000000000000000080FDE80FDE80FDE80FDE8');
     }
 
+    /// @inheritdoc IMonstropolyData
     function getLengths() public view returns(uint, uint, uint) {
         return (randLength, versions[version].nStats, versions[version].nAttributes);
     }
 
+    /// @inheritdoc IMonstropolyData
     function decodeLengths(string calldata gen_) public view returns(GenVersion memory lengths_) {
         bytes memory _bytes = bytes(gen_);
         string memory version_ = _slice(_bytes, (_bytes.length - randLength), randLength);
         lengths_ = versions[_hex2Dec(version_)];
     }
 
-    function updateLengths(uint256 _nStats, uint256 _nAttributes) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _updateLengths(_nStats, _nAttributes);
+    /// @inheritdoc IMonstropolyData
+    function getCurrentStringsLength() public view returns(uint) {
+        return (versions[version].nStats + versions[version].nAttributes + 3) * randLength;
     }
 
-    function _updateLengths(uint256 _nStats, uint256 _nAttributes) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        uint _genHalfLength = (_nStats + _nAttributes + 3) * randLength;
-        version++;
-        versions[version] = GenVersion(_nStats, _nAttributes, _genHalfLength);
+    /// @inheritdoc IMonstropolyData
+    function getAssetByGen(string calldata gen) public view returns(uint256) {
+        string memory _string;
+        string memory _stringM;
+        bytes memory _bytes = bytes(gen);
+
+        _string   = _slice(_bytes, 0, randLength);
+        _stringM   = _slice(_bytes, randLength*3, randLength);
+        return getValue(Value(_hex2Dec(_string), _hex2Dec(_stringM)));
     }
 
-    function setModules(uint[] calldata assets_, string[] memory modules_) public /* TBD: onlyRole */ {
-        require(assets_.length == modules_.length, "MonstropolyData: lengths doesnt match");
-        
-        for(uint i = 0; i < assets_.length; i++) {
-            _setModulesByAsset(assets_[i], modules_[i]);
-        }
-    } 
-
-    function setModulesByAsset(uint asset_, string memory modules_) public /* TBD: onlyRole */ {
-        _setModulesByAsset(asset_, modules_);
-    } 
-
-    function _setModulesByAsset(uint asset_, string memory modules_) internal {
-        require(bytes(modules_).length == getCurrentStringsLength(), "MonstropolyData: invalid length");
-        moduleStrings[asset_] = modules_;
-    }
-
+    /// @inheritdoc IMonstropolyData
     function getRarityByRange(uint256 gen) public view returns(uint256){
         require(gen < 1000000, "MonstropolyData: rarity too high");  
         uint256 pos;    
@@ -114,6 +86,7 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         return pos;
     }
 
+    /// @inheritdoc IMonstropolyData
     function getRarityByRangeVIP(uint256 gen) public view returns(uint256){
         require(gen < 1000000, "MonstropolyData: rarity too high");  
         uint256 pos;      
@@ -126,16 +99,19 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         return pos;
     }
 
+    /// @inheritdoc IMonstropolyData
     function getRarityByRange(string calldata gen) public view returns(uint) {
         bytes memory _bytes = bytes(gen);
         return getRarityByRange(_hex2Dec(_slice(_bytes, randLength*2, randLength)));
     }
 
+    /// @inheritdoc IMonstropolyData
     function getRarityByRangeVIP(string calldata gen) public view returns(uint) {
         bytes memory _bytes = bytes(gen);
         return getRarityByRangeVIP(_hex2Dec(_slice(_bytes, randLength*2, randLength)));
     }
 
+    /// @inheritdoc IMonstropolyData
     function getRarityByGen(string calldata gen) public view returns(uint256) {
         string memory _string;
         string memory _stringM;
@@ -146,22 +122,56 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         return getValue(Value(_hex2Dec(_string), _hex2Dec(_stringM)));
     }
 
+    /// @inheritdoc IMonstropolyData
+    function getValue(Value memory value) public pure returns(uint) {
+        return value.module == 0 ? 0 : value.random % value.module;
+    }
+
+    /// @inheritdoc IMonstropolyData
+    function hashGen(DeconstructedGen memory gen) public view returns(bytes32) {
+        bytes memory _bytes = abi.encodePacked(
+            getValue(gen._asset),
+            getValue(gen._type),
+            getValue(gen._rarity)
+        );
+
+        for (uint i = 0; i < gen._stats.length; i++) {
+            _bytes = abi.encodePacked(_bytes, getValue(gen._stats[i]));
+        }
+
+        for (uint j = 0; j < gen._attributes.length; j++) {
+            _bytes = abi.encodePacked(_bytes, getValue(gen._attributes[j]));
+        }
+
+        return keccak256(_bytes);
+    }
+
+    /// @inheritdoc IMonstropolyData
+    function hashGen(string calldata gen) public view returns(bytes32) {
+        return hashGen(deconstructGen(gen));
+    }
+
+    /// @inheritdoc IMonstropolyData
     function setAssetInGen(string calldata gen, string calldata asset_) public view returns(string memory) {
         return _replaceInString(gen, asset_, 0);
     }
 
+    /// @inheritdoc IMonstropolyData
     function setRarityInGen(string calldata gen, string calldata rarity_) public view returns(string memory) {
         return _replaceInString(gen, rarity_, randLength*2);
     }
 
+    /// @inheritdoc IMonstropolyData
     function setTypeInGen(string calldata gen, string calldata type_) public view returns(string memory) {
         return _replaceInString(gen, type_, randLength);
     }
 
+    /// @inheritdoc IMonstropolyData
     function setStatInGen(string calldata gen, string memory stat_, uint statIndex_) public view returns(string memory) {
         return _replaceInString(gen, stat_, randLength*(3+statIndex_));
     }
 
+    /// @inheritdoc IMonstropolyData
     function cloneAttributesFrom(string calldata gen_, string calldata from_) public view returns(string memory) {
         bytes memory bytes_ = bytes(gen_);
         bytes memory cloneBytes_ = bytes(from_);
@@ -175,6 +185,7 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         return string(abi.encodePacked(keep_, clone_, keepM_, cloneM_, finalVersion_));
     }
 
+    /// @inheritdoc IMonstropolyData
     function incrementStatInGen(string calldata gen, uint increment, uint statIndex_) public view returns(string memory) {
         bytes memory bytes_ = bytes(gen);
         GenVersion memory version_ = decodeLengths(gen);
@@ -184,27 +195,8 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         require((stat_ % statModule_) < ((stat_ + increment) % statModule_), "MonstropolyData: stat overflow");
         return setStatInGen(gen, _padLeft(stat_ + increment, randLength), statIndex_);
     }
-
-    function _replaceInString(string calldata original_, string memory insert_, uint index_) internal view returns(string memory) {
-        bytes memory _bytes = bytes(original_);
-        bytes memory _insertBytes = bytes(insert_);
-        uint _insertLen = _insertBytes.length;
-        //TBD: require(_insertLen == randLength); ??
-        string memory _start = _slice(_bytes, 0, index_);
-        string memory _end = _slice(_bytes, (index_+_insertLen), (_bytes.length - (index_+_insertLen)));
-        return string(abi.encodePacked(_start, insert_, _end));
-    }
-
-    function getAssetByGen(string calldata gen) public view returns(uint256) {
-        string memory _string;
-        string memory _stringM;
-        bytes memory _bytes = bytes(gen);
-
-        _string   = _slice(_bytes, 0, randLength);
-        _stringM   = _slice(_bytes, randLength*3, randLength);
-        return getValue(Value(_hex2Dec(_string), _hex2Dec(_stringM)));
-    }
     
+    /// @inheritdoc IMonstropolyData
     function deconstructGen(string calldata gen) public view returns(DeconstructedGen memory){
         uint256 len = bytes(gen).length;
         require(len >= _getStringsLength(gen), "MonstropolyData: wrong gen length");
@@ -256,38 +248,48 @@ contract MonstropolyData is AccessControlProxyPausable, UUPSUpgradeableByRole, C
         return decGen;
     }
 
-    function getCurrentStringsLength() public view returns(uint) {
-        return (versions[version].nStats + versions[version].nAttributes + 3) * randLength;
+    /// @inheritdoc IMonstropolyData
+    function updateLengths(uint256 _nStats, uint256 _nAttributes) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _updateLengths(_nStats, _nAttributes);
     }
+
+    /// @inheritdoc IMonstropolyData
+    function setModules(uint[] calldata assets_, string[] memory modules_) public /* TBD: onlyRole */ {
+        require(assets_.length == modules_.length, "MonstropolyData: lengths doesnt match");
+        
+        for(uint i = 0; i < assets_.length; i++) {
+            _setModulesByAsset(assets_[i], modules_[i]);
+        }
+    } 
+
+    /// @inheritdoc IMonstropolyData
+    function setModulesByAsset(uint asset_, string memory modules_) public /* TBD: onlyRole */ {
+        _setModulesByAsset(asset_, modules_);
+    } 
 
     function _getStringsLength(string calldata gen_) internal view returns(uint) {
         GenVersion memory version_ = decodeLengths(gen_);
         return (version_.nStats + version_.nAttributes + 3) * randLength;
     }
 
-    function getValue(Value memory value) public pure returns(uint) {
-        return value.module == 0 ? 0 : value.random % value.module;
+    function _updateLengths(uint256 _nStats, uint256 _nAttributes) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint _genHalfLength = (_nStats + _nAttributes + 3) * randLength;
+        version++;
+        versions[version] = GenVersion(_nStats, _nAttributes, _genHalfLength);
     }
 
-    function hashGen(DeconstructedGen memory gen) public view returns(bytes32) {
-        bytes memory _bytes = abi.encodePacked(
-            getValue(gen._asset),
-            getValue(gen._type),
-            getValue(gen._rarity)
-        );
-
-        for (uint i = 0; i < gen._stats.length; i++) {
-            _bytes = abi.encodePacked(_bytes, getValue(gen._stats[i]));
-        }
-
-        for (uint j = 0; j < gen._attributes.length; j++) {
-            _bytes = abi.encodePacked(_bytes, getValue(gen._attributes[j]));
-        }
-
-        return keccak256(_bytes);
+    function _setModulesByAsset(uint asset_, string memory modules_) internal {
+        require(bytes(modules_).length == getCurrentStringsLength(), "MonstropolyData: invalid length");
+        moduleStrings[asset_] = modules_;
     }
 
-    function hashGen(string calldata gen) public view returns(bytes32) {
-        return hashGen(deconstructGen(gen));
+    function _replaceInString(string calldata original_, string memory insert_, uint index_) internal view returns(string memory) {
+        bytes memory _bytes = bytes(original_);
+        bytes memory _insertBytes = bytes(insert_);
+        uint _insertLen = _insertBytes.length;
+        //TBD: require(_insertLen == randLength); ??
+        string memory _start = _slice(_bytes, 0, index_);
+        string memory _end = _slice(_bytes, (index_+_insertLen), (_bytes.length - (index_+_insertLen)));
+        return string(abi.encodePacked(_start, insert_, _end));
     }
 }

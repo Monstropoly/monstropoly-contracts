@@ -5,7 +5,8 @@ require('@nomiclabs/hardhat-truffle5')
 require('@nomiclabs/hardhat-etherscan')
 require('@openzeppelin/hardhat-upgrades')
 require('hardhat-gas-reporter')
-require("solidity-coverage")
+require("solidity-coverage");
+require('hardhat-docgen');
 const { random, template } = require('lodash')
 const GAS_PRICE_DEFAULT = 10000000000
 const GAS_MULTIPLIER_DEFAULT = 1
@@ -115,13 +116,13 @@ module.exports = {
       gasMultiplier: GAS_MULTIPLIER_DEFAULT,
       accounts: { mnemonic: process.env.MNEMONIC }
     },
-    hardhat: {
-      chainId: 31337,
-      forking: {
-        url: 'https://data-seed-prebsc-1-s1.binance.org:8545/'
-      },
-      accounts: { mnemonic: process.env.MNEMONIC }
-    }
+    // hardhat: {
+    //   chainId: 31337,
+    //   forking: {
+    //     url: 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+    //   },
+    //   accounts: { mnemonic: process.env.MNEMONIC }
+    // }
   },
   // This is a sample solc configuration that specifies which version of solc to use
   solidity: {
@@ -136,7 +137,22 @@ module.exports = {
         }
       },
       {
-        version: '0.8.2'
+        version: '0.8.2',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
+      {
+        version: '0.8.0',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
       },
       {
         version: '0.8.9',
@@ -169,5 +185,33 @@ module.exports = {
 
     url: getScanUrl(),
     apiKey: getKey()
+  },
+  docgen: {
+    path: './docs',
+    clear: false,
+    runOnCompile: false,
+    only: [
+        'MonstropolyDeployer', 
+        'IMonstropolyDeployer', 
+        'MonstropolyFactory', 
+        'IMonstropolyFactory',
+        'MonstropolyERC20', 
+        'IMonstropolyERC20',
+        'MonstropolyGLD',
+        'MonstropolyData', 
+        'IMonstropolyData',
+        'MonstropolyGenScience', 
+        'IMonstropolyGenScience',
+        'MonstropolyTrainer', 
+        'IMonstropolyTrainer',
+        'MonstropolyUpgrader', 
+        'IMonstropolyUpgrader',
+        'MonstropolyMagicBoxesShop', 
+        'IMonstropolyMagicBoxesShop',
+        'AccessControlProxyPausable', 
+        'IAccessControlProxyPausable',
+        'UUPSUpgradeableByRole',
+        'UUPSNotUpgradeable'
+    ]
   }
 }

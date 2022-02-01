@@ -19,6 +19,7 @@ contract MonstropolyRewardsDistributor {
 
     event Init(uint startBlock, uint endBlock, uint changeBlock, uint256 rewardPerBlock, uint256 increment);
     event DistributeTokens(address sender, address account, uint256 amount);
+    event UpdateAllocations(uint72[4] allocations);
 
     function _released() internal view returns (uint256) {
 
@@ -34,8 +35,6 @@ contract MonstropolyRewardsDistributor {
                     amount += (increment * ((block.number - changeBlock) ** 2)) / 2;
                 }
             }
-        } else {
-            return 0;
         }
 
         return amount;
@@ -61,6 +60,25 @@ contract MonstropolyRewardsDistributor {
         emit DistributeTokens(msg.sender, account, amount);
     }
 
+    function updateAllocations(uint72[4] memory allocations) public {
+        require(msg.sender == vault, "MonstropolyRewardsDistributor: only vault can update allocations");
+        
+        uint72 total = 0;
+
+        for(uint i = 0; i < allocations.length; i++) {
+            total += allocations[i];
+        }
+
+        require(total == 100 ether, "MonstropolyRewardsDistributor: allocations aggregate must be 100 ether");
+
+        allocation[keccak256("STAKING")] = allocations[0];
+        allocation[keccak256("STAKING_NFT")] = allocations[1];
+        allocation[keccak256("FARMING")] = allocations[2];
+        allocation[keccak256("P2E")] = allocations[3];
+
+        emit UpdateAllocations(allocations);
+    }
+
     constructor (uint startBlock_, uint endBlock_, uint changeBlock_, uint256 amountA, uint256 amountB) {
 
         vault = msg.sender;
@@ -70,12 +88,16 @@ contract MonstropolyRewardsDistributor {
 
         rewardPerBlock = amountA / (endBlock - startBlock);
         increment = (2 * amountB) / ((endBlock - changeBlock) ** 2);
-    
-        allocation[keccak256("STAKING")] = 20 ether;
-        allocation[keccak256("FARMING")] = 30 ether;
-        allocation[keccak256("STAKING_NFT")] = 20 ether;
-        allocation[keccak256("P2E")] = 30 ether;
 
+        uint72[4] memory allocations = [
+            20 ether,
+            20 ether,
+            30 ether,
+            30 ether
+        ];
+
+        updateAllocations(allocations);
+        
         emit Init(startBlock, endBlock, changeBlock, rewardPerBlock, increment);
     }
 }

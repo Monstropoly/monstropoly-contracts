@@ -12,15 +12,13 @@ import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../shared/IMonstropolyData.sol";
 import "../shared/IMonstropolyDeployer.sol";
+import "../shared/IMonstropolyFactory.sol";
 
-
-contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlProxyPausable, ERC721BurnableUpgradeable, UUPSUpgradeableByRole {
+/// @title The contract for ERC721 Monstropoly
+/// @notice Creates Monstropoly's NFTs
+/// @dev Derived from ERC721 to represent assets in Monstropoly
+contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlProxyPausable, ERC721BurnableUpgradeable, UUPSUpgradeableByRole {
     using CountersUpgradeable for CountersUpgradeable.Counter;
-
-    struct Token {
-        string genetic;
-        uint bornAt;
-    }
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant LOCKER_ROLE = keccak256("LOCKER_ROLE");
@@ -33,8 +31,6 @@ contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721Enumerabl
     mapping(bytes32 => bool) private _genetics;
     mapping(uint256 => bool) private _lockedTokens;
     mapping(uint256 => Token) private _tokensById;
-
-    event Mint(address indexed from, address indexed to, uint256 indexed tokenId, string genetic);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {}
@@ -50,6 +46,7 @@ contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721Enumerabl
         _setContractURI("https://monstropoly.io/contractUri/");
     }
 
+    /// @inheritdoc ERC721Upgradeable
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -59,75 +56,78 @@ contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721Enumerabl
         return super.supportsInterface(interfaceId);
     }
 
+    /// @inheritdoc IMonstropolyFactory
+    function tokenOfId(uint256 tokenId) public view returns(Token memory) {
+        return _tokensById[tokenId];
+    }
+
+    /// @inheritdoc IMonstropolyFactory
     function isApproved(address to, uint256 tokenId) public view returns (bool){
         return _isApprovedOrOwner(to, tokenId);
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function exists(uint256 tokenId) public view returns (bool) {
         return _exists(tokenId);
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function freeGen(string calldata gen) public view returns(bool) {
         bytes32 _genId = _hashGen(gen);
         return !_genetics[_genId];
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function baseURI() public view returns (string memory) {
         return _baseURI();
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function tokenURI(uint256 tokenId)
         public
         view
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        override(ERC721Upgradeable, ERC721URIStorageUpgradeable, IMonstropolyFactory)
         returns (string memory)
     {
         return super.tokenURI(tokenId);
     }
 
-    // TBD: decide if concat with tokenId or set URI for each id and reuse the OZ function
-    // function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-    //     require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
-    //     string memory baseURI = _baseURI();
-    //     return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId)) : "";
-    // }
-
+    /// @inheritdoc IMonstropolyFactory
     function contractURI() public view returns (string memory) {
         return _contractUri;
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function isLocked(uint256 tokenId) public view returns(bool) {
         return _lockedTokens[tokenId];
     }
 
-    function _baseURI() internal view virtual override returns (string memory) {
-        return _baseTokenURI;
-    }
-
+    /// @inheritdoc IMonstropolyFactory
     function setBaseURI(string memory newBaseTokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setBaseURI(newBaseTokenURI);
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function setTokenURI(uint256 tokenId, string memory _tokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setTokenURI(tokenId, _tokenURI);
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function setContractURI(string memory contractURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContractURI(contractURI);
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function lockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
         _lockedTokens[tokenId] = true;
     }
 
+    /// @inheritdoc IMonstropolyFactory
     function unlockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
         _lockedTokens[tokenId] = false;
     }
 
-    function tokenOfId(uint256 tokenId) public view returns(Token memory) {
-        return _tokensById[tokenId];
-    }
-
+    /// @inheritdoc IMonstropolyFactory
     function mint(address to, string calldata genetic_) public onlyRole(MINTER_ROLE) returns(uint) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
@@ -138,36 +138,14 @@ contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721Enumerabl
         Token memory token_ = Token(genetic_, block.timestamp);
         _tokensById[tokenId] = token_;
         _safeMint(to, tokenId);
-        // _setTokenURI(tokenId, uri);
 
         emit Mint(address(0), to, tokenId, genetic_);
 
         return tokenId;
     }
 
-    // function safeMint(address to, string memory uri) public onlyRole(MINTER_ROLE) {
-    //     uint256 tokenId = _tokenIdCounter.current();
-    //     _tokenIdCounter.increment();
-    //     _safeMint(to, tokenId);
-    //     _setTokenURI(tokenId, uri);
-    // }
-
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        whenNotPaused
-        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
-    {
-        require(!_lockedTokens[tokenId] , "MonstropolyFactory: locked token");
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-
-    // The following functions are overrides required by Solidity.
-
-    function _burn(uint256 tokenId)
-        internal
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
-    {
-        super._burn(tokenId);
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
     }
 
     function _setBaseURI(string memory newBaseTokenURI) internal {
@@ -178,7 +156,36 @@ contract MonstropolyFactory is Initializable, ERC721Upgradeable, ERC721Enumerabl
         _contractUri = contractURI;
     }
 
-    function _hashGen(string calldata gen) public view returns(bytes32) {
+    /// @dev Deconstructs gen and computes its hash
+    function _hashGen(string memory gen) public view returns(bytes32) {
         return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    /// @inheritdoc IMonstropolyFactory
+    function burn(uint256 tokenId)
+        public
+        override(ERC721BurnableUpgradeable, IMonstropolyFactory)
+    {
+        super.burn(tokenId);
+    }
+
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+    {
+        bytes32 genId_ = _hashGen(_tokensById[tokenId].genetic);
+        _genetics[genId_] = false;
+        super._burn(tokenId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+        internal
+        whenNotPaused
+        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
+    {
+        require(!_lockedTokens[tokenId] , "MonstropolyFactory: locked token");
+        super._beforeTokenTransfer(from, to, tokenId);
     }
 }
