@@ -3,7 +3,6 @@ pragma solidity 0.8.9;
 
 import "../../shared/IMonstropolyData.sol";
 import "../../shared/IMonstropolyFactory.sol";
-import "../../shared/IMonstropolyGenScience.sol";
 import "../../shared/IMonstropolyERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";

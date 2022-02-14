@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.9;
 import "../shared/IMonstropolyERC20.sol";
-import "../shared/IMonstropolyGenScience.sol";
 import "../shared/IMonstropolyFactory.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../utils/CoinCharger.sol";
@@ -22,6 +21,7 @@ import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeableByRole, BaseRelayRecipient, CoinCharger {
 
     string public override versionRecipient = "2.4.0";
+    string[] private _genetics;
 
     mapping(uint256 => MagicBox) public box;
     mapping(address => mapping(bool => mapping(uint => uint))) public balances;
@@ -44,10 +44,18 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
         _updateMagicBox(id, assets, price, token, burnPercentage_, treasuryPercentage_, vip);
     }
 
+    function setGenetics(string[] calldata genetics_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
+        delete _genetics;
+        for(uint i = 0; i < genetics_.length; i++) {
+            _genetics.push(genetics_[i]);
+        }
+        // _genetics = genetics_;
+    }
+
     /// @inheritdoc IMonstropolyMagicBoxesShop
-    function purchase(uint256 id, uint256 amount) public payable virtual {
-        address account = msg.sender;
-        uint256 price = box[id].price * amount;
+    function purchase(uint id) public payable virtual {
+        address account = _msgSender();
+        uint256 price = box[id].price;
         
         require(price > 0, "MonstropolyMagicBoxesShop: wrong 0 price");
 
@@ -61,24 +69,17 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
             _burnFromERC20(box[id].token, account, burnAmount_);
         }
 
+        require(_genetics.length == box[id].assets.length, "MonstropolyMagicBoxesShop: not enough genetics");
+
+        IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
+
+        uint[] memory tokenIds_ = new uint[](box[id].assets.length);
+
         for(uint i = 0; i < box[id].assets.length; i++) {
-            balances[account][box[id].vip][box[id].assets[i]] += amount;
+            tokenIds_[i] = factory.mint(account, _genetics[i]);
         }
 
-        emit MagicBoxPurchased(account, id, amount);
-    }
-
-    /// @inheritdoc IMonstropolyMagicBoxesShop
-    function open(uint asset, bool vip) public virtual returns(uint) {  
-        address account = _msgSender();      
-        require(balances[account][vip][asset] >= 1, "MonstropolyMagicBoxesShop: amount exceeds balance");        
-        balances[account][vip][asset]--;
-        IMonstropolyGenScience genScience = IMonstropolyGenScience(IMonstropolyDeployer(config).get(keccak256("SCIENCE")));
-        IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
-        string memory gen = genScience.generateAsset(asset, vip);
-        uint256 tokenId = factory.mint(account, gen);
-        emit MagicBoxOpened(account, asset, vip, tokenId);
-        return tokenId;
+        delete _genetics;
     }
 
     function _updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) internal {

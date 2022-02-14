@@ -32,8 +32,7 @@ interface IMonstropolyUpgrader {
 
     /// @notice Upgrades a NFT from old ones
     /// @dev Burns old ones and mints a new upgraded one
-    /// @dev Set _clone to -1 to random attributes
     /// @param _tokens Array with tokenIds of old NFTs to burn
     /// @param _clone Index of NFT to clone attributes from
-    function upgrade(uint256[5] memory _tokens, int _clone) external;
+    function upgrade(uint256[5] memory _tokens, uint _clone) external;
 }

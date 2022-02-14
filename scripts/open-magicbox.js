@@ -5,15 +5,13 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const MAGIC_BOXES_ADDR = '0x44E7f995bc37be0d27102a063c52f6e03A52DA3C'
-const FACTORY_ADDR = '0x39C296E7046c27B3cfEF8514D368bA1aE8558399'
+const MAGIC_BOXES_ADDR = '0x17Aa42B56eCD825947A51895920C669A7a34E5A3'
+const FACTORY_ADDR = '0xf693938216B7E086205d885f0545C7C63A0E83FA'
 const MPOLY_ADDR = '0x6a4e41E9114B4E5528bE8C34f95a4F3134c903C7'
-const RELAYER_ADDR = '0x7D86C5D294BDC06aD9d5075Cc7F77BD802A80308'
-const PAYMASTER_ADDR = '0x67fFB0916204a85be70115D0DA03E6DB275139DA'
-const GENSCIENCE_ADDR = '0x6aaa80b4eE5d0901ea3092BB11fe50636a9f5e83'
+const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
+const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
-const ASSET = 0 // 0-Character 1-Weapon. The asset you want to open
-const VIP = false // Is your asset from a VIP box?
+const BOX_ID = 0 // 0-Character 1-Weapon 2-Character+Weapon
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -31,7 +29,6 @@ async function main() {
     const factoryContract = await ethers.getContractAt('MonstropolyFactory', FACTORY_ADDR)
     const mpolyContract = await ethers.getContractAt('MonstropolyERC20', MPOLY_ADDR)
     let relayerContract = await ethers.getContractAt('MonstropolyRelayer', RELAYER_ADDR)
-    const scienceContract = await ethers.getContractAt('MonstropolyGenScience', GENSCIENCE_ADDR)
 
     /*** USER */
 
@@ -47,17 +44,9 @@ async function main() {
         console.log('ERC20 approve to Paymaster...')
         await mpolyContract.approve(PAYMASTER_ADDR, ethers.constants.MaxUint256)
     }
-
-    const boxBalance = await magicBoxesContract.balances(user.address, VIP, ASSET)
-
-    if (boxBalance.toString() == '0') {
-        console.log('Purchasing box...')
-        const _response = await magicBoxesContract.purchase(0, 1)
-        await _response.wait()
-    }
     
     console.log('Preparing offchain signature...')
-    const openData = magicBoxesContract.interface.encodeFunctionData('open', [ASSET, VIP]);
+    const openData = magicBoxesContract.interface.encodeFunctionData('purchase', [BOX_ID]);
     const nonce = await relayerContract.getNonce(user.address)
 
     const domain = {
@@ -83,9 +72,9 @@ async function main() {
         from: user.address,
         to: MAGIC_BOXES_ADDR,
         value: 0,
-        gas: 2000000, //ToDo: estimate gas for this, not ready
+        gas: 3000000, //ToDo: estimate gas for this, not ready
         nonce: nonce,
-        data: openData,
+        data: openData.toString(),
         validUntil: 0
     }
 
@@ -105,31 +94,26 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const length = 'asset-type--raritystat0-stat1-stat2-stat3-attr0-attr1-attr2-attr3-attr4-attr5-attr6-attr7-attr8-colorRcolorGcolorBcolorA' // not used
-    const RANDOM = '74009822340907827182938413294873434622149889083187439813573837874ee32983a48391141ab1110001132451987654987654987654987654' //modify manually !!!
+    const RANDOM = ['00002718C938632B498890'] //modify manually !!!
 
     // Decode openData to get ASSET and VIP
-    const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('open', value.data)
-    const _asset = decodedOpenData.asset
-    const _vip = decodedOpenData.vip
+    const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('purchase', value.data)
+    const _boxId = decodedOpenData.id
 
-    // Check signer balance to prevent failed TXs
-    const _boxBalance = await magicBoxesContract.balances(signer, _vip, _asset)
-
-    // Check if new gen (obtained from gen) is free.
-    const genObj = await scienceContract.generateAssetView(ASSET, RANDOM, VIP)
-    const gen = genObj.gen_ //Note gen != RANDOM in ASSET.random and RARITY.random fields as contract needs to set this in accordance to case
-    
-    if (genObj.free_ == true) {
-        console.log('New gen is free!')
-        console.log(gen)
-    } else {
-        console.log('Gen exists, generate a new random')
+    // Check if new gen (obtained from gen) is free
+    for(let i = 0; i < RANDOM.length; i++) {
+        let isFree = await factoryContract.freeGen(RANDOM[i])
+        
+        if (isFree) {
+            console.log('New gen ' + RANDOM[i] + ' is free!')
+        } else {
+            console.log('Gen ' + RANDOM[i] + ' exists, generate a new random')
+        }
     }
 
-    const wrappData = scienceContract.interface.encodeFunctionData('setRandom', [RANDOM])
+    const wrappData = magicBoxesContract.interface.encodeFunctionData('setGenetics', [RANDOM])
     relayerContract = relayerContract.connect(backend)
-    const response = await relayerContract.callAndRelay(wrappData, GENSCIENCE_ADDR, value, signature)
+    const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature)
     // You can find txHash in response.hash so user can await in frontend (?)
     const receipt = await response.wait()
     // const receipt = await ethers.provider.getTransactionReceipt(response.hash) //that's how you can do it in frontend

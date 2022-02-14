@@ -67,7 +67,6 @@ contract MonstropolyGenScience is IMonstropolyGenScience, AccessControlProxyPaus
 
     function _generateFromRootView(uint[3] memory rootValues_, bool[3] memory preFixed_, string memory random_, bool vip_) public view returns(string memory gen_) {
         gen_ = _generateAssetView(rootValues_[0], random_, vip_, preFixed_[2]);
-        if (preFixed_[1]) gen_ = _setGenType(gen_, rootValues_[1]);
         if (preFixed_[2]) gen_ = _setGenRarity(gen_, rootValues_[2]);
     }
 
@@ -87,15 +86,10 @@ contract MonstropolyGenScience is IMonstropolyGenScience, AccessControlProxyPaus
 
     function _getGenRarity(string memory rawGen_, bool _vip) internal view returns(uint) {
         IMonstropolyData data_ = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
-        uint rarity_ = _vip ? data_.getRarityByRangeVIP(rawGen_) : data_.getRarityByRange(rawGen_);
+        uint rarity_ = data_.getRarityByGen(rawGen_);
         return rarity_;
     }
-
-    function _setGenType(string memory rawGen_, uint type_) internal view returns(string memory){
-        IMonstropolyData data_ = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
-        return data_.setTypeInGen(rawGen_, _padLeft(type_, data_.randLength()));
-    }
-
+    
     function _generateGenRaw(string memory random_, uint asset_) internal view returns(string memory gen_) {
         uint len_ = _getStringsLength();
         require(bytes(random_).length == len_, "MonstropolyGenScience: invalid random length");
@@ -105,12 +99,11 @@ contract MonstropolyGenScience is IMonstropolyGenScience, AccessControlProxyPaus
     function _buildGen(string memory genRandom_, uint asset_) internal view returns(string memory gen_) {
         IMonstropolyData data_ = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
         uint _randLength = data_.randLength();
-        uint _version = data_.version();
-        gen_ = string(abi.encodePacked(genRandom_, data_.moduleStrings(asset_), _padLeft(_version, _randLength)));
+        gen_ = string(abi.encodePacked(genRandom_, data_.moduleStrings(asset_)));
     }
 
     function _getStringsLength() internal view returns(uint) {
-        return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).getCurrentStringsLength();
+        return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).getGenLength();
     }
 
     function _resetRandom() internal {

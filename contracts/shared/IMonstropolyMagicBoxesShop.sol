@@ -60,12 +60,5 @@ interface IMonstropolyMagicBoxesShop {
 
     /// @notice Purchases Magic Boxes
     /// @param id Identificator of the Magic Box
-    /// @param amount Units of Magic boxes
-    function purchase(uint256 id, uint256 amount) external payable;
-
-    /// @notice Opens an asset of a Magic Box
-    /// @dev Assets of the box are opened/spent individually
-    /// @param asset Asset to open/spend
-    /// @param vip VIP to open/spend
-    function open(uint asset, bool vip) external returns(uint);
+    function purchase(uint256 id) external payable;
 }

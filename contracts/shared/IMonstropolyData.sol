@@ -22,15 +22,13 @@ interface IMonstropolyData {
   
     struct DeconstructedGen {
         // Asset: 0-Character, 1-Weapon
-        Value _asset;
-        // Type: base category
-        Value _type;
+        uint _asset;
         // Rarity: COMMON, UNCOMMON, PREMIUM, RARE, EXOTIC and LEGENDARY
-        Value _rarity;
+        uint _rarity;
         // Array with stats of the asset
-        Value[] _stats;
+        uint[] _stats;
         // Array with attributes to create image
-        Value[] _attributes;
+        uint[] _attributes;
     }
 
     struct GenVersion {
@@ -45,11 +43,6 @@ interface IMonstropolyData {
     /// @notice Returns N of hex characters per random value
     /// @return N of hex characters
     function randLength() external view returns(uint256);
-
-    /// @notice Returns current lengths version
-    /// @dev Used to index GenVersion
-    /// @return Current version
-    function version() external view returns(uint256);
 
     /// @notice Returns GenVersion by index
     /// @param version Index for versions
@@ -67,49 +60,19 @@ interface IMonstropolyData {
     /// @return Current nAttributes
     function getLengths() external view returns(uint, uint, uint);
 
-    /// @notice Returns GenVersion by version decoded by gen_
-    /// @param gen_ Genetic of the NFT
-    /// @return Struct GenVersion of decoded version
-    function decodeLengths(string calldata gen_) external view returns(GenVersion memory);
-
-    /// @notice Returns current length of the random part of the string
-    /// @return Current genHalfLength
-    function getCurrentStringsLength() external view returns(uint);
+    /// @notice Returns length of genetic
+    /// @return Gen length
+    function getGenLength() external view returns(uint256);
 
     /// @notice Returns asset decoded from gen
     /// @param gen Genetic of NFT
     /// @return Asset
     function getAssetByGen(string calldata gen) external view returns(uint256);
 
-    /// @notice Returns rarity based on random number and probability ranges
-    /// @param gen Random number [0-99999]
-    /// @return Rarity
-    function getRarityByRange(uint256 gen) external view returns(uint256);
-
-    /// @notice Returns rarity based on random number and probability VIP ranges
-    /// @param gen Random number [0-99999]
-    /// @return Rarity
-    function getRarityByRangeVIP(uint256 gen) external view returns(uint256);
-
-    /// @notice Returns rarity based on genetic and probability ranges
-    /// @param gen Genetic of NFT
-    /// @return Rarity
-    function getRarityByRange(string calldata gen) external view returns(uint256);
-
-    /// @notice Returns rarity based on genetic and probability VIP ranges
-    /// @param gen Genetic of NFT
-    /// @return Rarity
-    function getRarityByRangeVIP(string calldata gen) external view returns(uint256);
-
     /// @notice Returns deconstructed and modularized rarity
     /// @param gen Genetic of NFT
     /// @return Modularized rarity value
     function getRarityByGen(string calldata gen) external view returns(uint256);
-
-    /// @notice Returns the modularized result of Value
-    /// @param value Struct value
-    /// @return value.random % value.module
-    function getValue(Value memory value) external pure returns(uint);
 
     /// @notice Returns the hash of the genetic
     /// @dev Makes keccak256 of deconstructed and encodePacked gen
@@ -134,12 +97,6 @@ interface IMonstropolyData {
     /// @return Modified genetic
     function setRarityInGen(string calldata gen, string calldata rarity_) external view returns(string memory);
     
-    /// @notice Returns genetic with the indicated type
-    /// @param gen Raw genetic of NFT
-    /// @param type_ Desired type
-    /// @return Modified genetic
-    function setTypeInGen(string calldata gen, string calldata type_) external view returns(string memory);
-    
     /// @notice Returns genetic with the indicated stat
     /// @param gen Raw genetic of NFT
     /// @param stat_ Desired stat
@@ -153,13 +110,19 @@ interface IMonstropolyData {
     /// @return Modified genetic
     function cloneAttributesFrom(string calldata gen_, string calldata from_) external view returns(string memory);
     
+    /// @notice Returns genetic incrementing rarity
+    /// @param gen Genetic of NFT
+    /// @param increment Units to increment rarity
+    /// @return Modified genetic
+    function incrementRarityInGen(string calldata gen, uint increment) external view returns(string memory);
+
     /// @notice Returns genetic incrementing any stat
     /// @param gen Genetic of NFT
     /// @param increment Units to increment stat
     /// @param statIndex_ Index of stat to increment
     /// @return Modified genetic
     function incrementStatInGen(string calldata gen, uint increment, uint statIndex_) external view returns(string memory);
-    
+
     /// @notice Returns the deconstructed object of some genetic
     /// @dev Decodes version from genetic
     /// @param gen Genetic of NFT
@@ -170,16 +133,4 @@ interface IMonstropolyData {
     /// @param _nStats New length for stats array
     /// @param _nAttributes New length for attributes array
     function updateLengths(uint256 _nStats, uint256 _nAttributes) external;
-
-    /// @notice Sets modules string for assets
-    /// @dev Must match with current version's length
-    /// @param assets_ Array of assets to set
-    /// @param modules_ Array of modules to set
-    function setModules(uint[] calldata assets_, string[] memory modules_) external;
-    
-    /// @notice Set module string for an asset
-    /// @dev Must match with current version's length
-    /// @param asset_ Asset to set
-    /// @param modules_ Modules to set
-    function setModulesByAsset(uint asset_, string memory modules_) external;
 }

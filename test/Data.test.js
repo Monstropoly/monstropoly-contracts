@@ -16,7 +16,7 @@ const Data = artifacts.require('MonstropolyData')
 const Factory = artifacts.require('MonstropolyFactory')
 const Science = artifacts.require('MonstropolyGenScience')
 
-const SALT = '7483982234090782718293841329487343463214988908318743981357385787418329837483911111111111111111119876'
+const SALT = '00002718C938632B498890'
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 
 let myData, myFactory, myScience, myDeployer
@@ -73,85 +73,8 @@ describe('MonstropolyData', function () {
             expect(lengths[2].toString()).to.equal(nAttributes)
         })
 
-        it('can updateLengths and setModules', async () => {
-            let nStats = '3'
-            let nAttributes = '12'
-            let MODULES0 = '0000200006000060006400064000640000F0000A000050000F0000F0000E000150000D000080FDE80FDE80FDE8'
-            let MODULES1 = '0000200006000060006400064000640000F0000A000000000000000000000000000000000080FDE80FDE80FDE8'
-            await myData.updateLengths(nStats, nAttributes)
-            await myData.setModules(
-                [
-                    '0',
-                    '1'
-                ],
-                [
-                    MODULES0,
-                    MODULES1
-                ]
-            )
-            let modules0 = await myData.moduleStrings('0')
-            let modules1 = await myData.moduleStrings('1')
-            expect(MODULES0).to.equal(modules0)
-            expect(MODULES1).to.equal(modules1)
-        })
-
-        it('can updateLengths and setModulesByAsset', async () => {
-            let nStats = '3'
-            let nAttributes = '12'
-            let MODULES0 = '0000200006000060006400064000640000F0000A000050000F0000F0000E000150000D000080FDE80FDE80FDE8'
-            await myData.updateLengths(nStats, nAttributes)
-            await myData.setModulesByAsset(
-                '0',
-                MODULES0
-            )
-            let modules0 = await myData.moduleStrings('0')
-            expect(MODULES0).to.equal(modules0)
-        })
-
-        it('reverts in setModules if wrong length', async () => {
-            let nStats = '3'
-            let nAttributes = '12'
-            let MODULES0 = '000200006000060006400064000640000F0000A000050000F0000F0000E000150000D000080FDE80FDE80FDE8'
-            let MODULES1 = '000200006000060006400064000640000F0000A000000000000000000000000000000000080FDE80FDE80FDE8'
-            await myData.updateLengths(nStats, nAttributes)
-            await expectRevert(
-                myData.setModules(
-                    [
-                        '0',
-                        '1'
-                    ],
-                    [
-                        MODULES0,
-                        MODULES1
-                    ]
-                ),
-                'MonstropolyData: invalid length'
-            )
-        })
-
-        it('reverts in setModules if lengths doesnt match', async () => {
-            let nStats = '3'
-            let nAttributes = '12'
-            let MODULES0 = '0000200006000060006400064000640000F0000A000050000F0000F0000E000150000D000080FDE80FDE80FDE8'
-            let MODULES1 = '000200006000060006400064000640000F0000A000000000000000000000000000000000080FDE80FDE80FDE8'
-            await myData.updateLengths(nStats, nAttributes)
-            await expectRevert(
-                myData.setModules(
-                    [
-                        '0',
-                        '1'
-                    ],
-                    [
-                        MODULES0
-                    ]
-                ),
-                'MonstropolyData: lengths doesnt match'
-            )
-        })
-
         it('can deconstructGen if extra length', async () => {
             let gen = await myScience.generateAssetView(0, SALT, false)
-            console.log(gen.gen_)
             await myData.deconstructGen(gen.gen_)
         })
 
@@ -160,7 +83,7 @@ describe('MonstropolyData', function () {
             await myData.deconstructGen(gen.gen_.replace('00001', ''))
         })
 
-        it('can deconstructGen if right length', async () => {
+        it('reverts if gen is empty', async () => {
             let gen = await myScience.generateAssetView(0, SALT, false)
             expectRevert(
                 myData.deconstructGen(''),

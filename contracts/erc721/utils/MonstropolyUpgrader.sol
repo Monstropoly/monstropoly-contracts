@@ -3,7 +3,6 @@ pragma solidity 0.8.9;
 
 import "../../shared/IMonstropolyData.sol";
 import "../../shared/IMonstropolyFactory.sol";
-import "../../shared/IMonstropolyGenScience.sol";
 import "../../shared/IMonstropolyERC20.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -55,7 +54,7 @@ contract MonstropolyUpgrader is IMonstropolyUpgrader, AccessControlProxyPausable
     /// @inheritdoc IMonstropolyUpgrader
     function upgrade(
         uint256[5] memory _tokens,
-        int _clone // -1 to do it randomly
+        uint _clone
     ) public {
 
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
@@ -71,7 +70,7 @@ contract MonstropolyUpgrader is IMonstropolyUpgrader, AccessControlProxyPausable
         }
 
         _preUpgrade(_assets, _rarities);
-        uint256 _tokenId = _clone == -1 ? _processUpgrade(_assets[0], _rarities[0], "") : _processUpgrade(_assets[0], _rarities[0], factory.tokenOfId(_tokens[uint(_clone)]).genetic);
+        uint256 _tokenId = _processUpgrade(_assets[0], _rarities[0], factory.tokenOfId(_tokens[uint(_clone)]).genetic);
 
         factory.burn(_tokens[0]);
         factory.burn(_tokens[1]);
@@ -90,17 +89,13 @@ contract MonstropolyUpgrader is IMonstropolyUpgrader, AccessControlProxyPausable
         uint256 _upgradePrice = upgradePrices[_rarity];
         require(_upgradePrice > 0, "MonstropolyUpgrader: You reach max rarity");
 
-        IMonstropolyGenScience genScience = IMonstropolyGenScience(IMonstropolyDeployer(config).get(keccak256("SCIENCE")));
-        
-        string memory _gen = genScience.generateFromRoot(
-            [_asset, 0, _rarity + 1],
-            [true, false, true],
-            false
-        );
+        IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
 
-        if (bytes(_cloneGen).length > 0) {
-            _gen = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).cloneAttributesFrom(_gen, _cloneGen);
-        }
+        string memory _gen = data.incrementRarityInGen(_cloneGen, 1);
+
+        // if (bytes(_cloneGen).length > 0) {
+        //     _gen = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).cloneAttributesFrom(_gen, _cloneGen);
+        // }
 
         uint256 _tokenId = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY"))).mint(_msgSender(), _gen);
         _transferFrom(

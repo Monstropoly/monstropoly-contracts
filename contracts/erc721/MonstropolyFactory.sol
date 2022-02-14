@@ -158,7 +158,8 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
 
     /// @dev Deconstructs gen and computes its hash
     function _hashGen(string memory gen) public view returns(bytes32) {
-        return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
+        return keccak256(abi.encodePacked(gen));
+        // return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
     }
 
     // The following functions are overrides required by Solidity.
