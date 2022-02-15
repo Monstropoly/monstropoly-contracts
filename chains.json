@@ -1406,12 +1406,7 @@
     "networkId": 97,
     "nativeCurrency": { "name": "Binance Chain Native Token", "symbol": "tBNB", "decimals": 18 },
     "rpc": [
-      "https://data-seed-prebsc-1-s1.binance.org:8545",
-      "https://data-seed-prebsc-2-s1.binance.org:8545",
-      "https://data-seed-prebsc-1-s2.binance.org:8545",
-      "https://data-seed-prebsc-2-s2.binance.org:8545",
-      "https://data-seed-prebsc-1-s3.binance.org:8545",
-      "https://data-seed-prebsc-2-s3.binance.org:8545"
+        "https://data-seed-prebsc-2-s2.binance.org:8545"
     ],
     "faucets": ["https://testnet.binance.org/faucet-smart"],
     "infoURL": "https://testnet.bscscan.com"

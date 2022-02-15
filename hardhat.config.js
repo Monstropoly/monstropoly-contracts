@@ -189,7 +189,7 @@ module.exports = {
   docgen: {
     path: './docs',
     clear: false,
-    runOnCompile: true,
+    runOnCompile: false,
     only: [
         'MonstropolyDeployer', 
         'IMonstropolyDeployer', 
