@@ -32,8 +32,8 @@ const UPDATE_ORJUST_SETID = [
     false
 ]
 
-const MANAGER_OLD = '0x3ce02BaBCec05fCe7045658A114ad4A3beE4B362'
-const MANAGER_NEW = '0xa5D0A86fBd67166251d33A950c4Beb2683836C24'
+const MANAGER_OLD = '0xC868BFB5e1B9cE9D6728175aC9Dd4F632efCf210'
+const MANAGER_NEW = '0xe6f5BA3712CfAe6b4cDd27E4d26f77dF3b10d21b'
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command

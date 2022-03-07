@@ -1,20 +1,13 @@
-const { getWhitelistTree, solKeccak256 } = require('../utils/whitelistTree')
 const hre = require('hardhat')
-
+const ethers = hre.ethers
 const {
     ether, expectRevert
 } = require('@openzeppelin/test-helpers')
-const { web3 } = require('@openzeppelin/test-helpers/src/setup')
 const { artifacts } = require('hardhat')
-const { BigNumber } = require('@ethersproject/bignumber')
 const { expect } = require('chai')
-const { formatEther } = require('@ethersproject/units')
-const { providers } = require('ethers')
-const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent')
-const Deployer = artifacts.require('MonstropolyDeployer')
 
-const SALT = '00002718C938632B498890'
-const SALT2 = '00002718C938632B498891'
+const GEN = '010100030101010303'
+const GEN2 = '010100030102010303'
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const LOCKER_ROLE = ethers.utils.id('LOCKER_ROLE')
@@ -43,56 +36,71 @@ describe('MonstropolyFactory', function () {
 
     beforeEach(async () => {
 
-        myDeployer = await Deployer.new()
+        const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
+        myDeployer = await MonstropolyDeployer.deploy()
 
         const dataFactory = await ethers.getContractFactory('MonstropolyData')
         let calldataData = await dataFactory.interface.encodeFunctionData('initialize', []);
 
         const erc721Factory = await ethers.getContractFactory('MonstropolyFactory')
         let calldataerc721 = await erc721Factory.interface.encodeFunctionData('initialize', []);
+        const factoryImp = await erc721Factory.deploy()
 
-        const scienceFactory = await ethers.getContractFactory('MonstropolyGenScience')
-        let calldataScience = await scienceFactory.interface.encodeFunctionData('initialize', []);
+        await myDeployer.deploy(ethers.utils.id("DATA"), dataFactory.bytecode, calldataData)
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, calldataerc721)
 
-        await myDeployer.deploy(solKeccak256("DATA"), dataFactory.bytecode, calldataData)
-        await myDeployer.deploy(solKeccak256("FACTORY"), erc721Factory.bytecode, calldataerc721)
-        await myDeployer.deploy(solKeccak256("SCIENCE"), scienceFactory.bytecode, calldataScience)
-
-        const [data, factory, science] = await Promise.all([
-            myDeployer.get(solKeccak256("DATA")),
-            myDeployer.get(solKeccak256("FACTORY")),
-            myDeployer.get(solKeccak256("SCIENCE"))
+        const [data, factory] = await Promise.all([
+            myDeployer.get(ethers.utils.id("DATA")),
+            myDeployer.get(ethers.utils.id("FACTORY")),
         ])
 
         myData = await dataFactory.attach(data)
         myFactory = await erc721Factory.attach(factory)
-        myScience = await scienceFactory.attach(science)
 
         await myDeployer.grantRole(MINTER_ROLE, owner.address)
         await myDeployer.grantRole(LOCKER_ROLE, locker.address)
     })
-    describe('generateGen and mint', () => {
+    describe.only('generateGen and mint', () => {
         it('can mint a random gen', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
-            let hero = await myFactory.tokenOfId('0')
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const response = await myFactory.mint(owner, gen, rarity, breedUses)
+            const receipt = await response.wait()
+            let nft = await myFactory.tokenOfId('0')
             let tokenOwner = await myFactory.ownerOf('0')
-            let genAfterMint = await myScience.generateAssetView(asset, SALT, false);
-            expect(tokenOwner).to.eq(person.address)
-            expect(hero.genetic).to.eq(gen.gen_)
-            expect(gen.free_).to.eq(true)
-            expect(genAfterMint.free_).to.eq(false)
+            const block = await ethers.provider.getBlock(receipt.blockHash)
+            expect(tokenOwner).to.eq(owner)
+            expect(nft.genetic).to.eq(gen)
+            expect(nft.rarity).to.eq(rarity)
+            expect(nft.breedUses).to.eq(breedUses)
+            expect(nft.bornAt.toString()).to.eq(block.timestamp.toString())
         })
 
         it('can mint a random gen and get existence', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
-            let existence0 = await myFactory.exists('0')
-            let existence1 = await myFactory.exists('1')
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            await myFactory.mint(owner, gen, rarity, breedUses)
+            const existence0 = await myFactory.exists('0')
+            const existence1 = await myFactory.exists('1')
             expect(existence0).to.equal(true)
             expect(existence1).to.equal(false)
+        })
+
+        it('reverts if mint an existing gen', async () => {
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            await myFactory.mint(owner, gen, rarity, breedUses)
+            await expect(
+                myFactory.mint(owner, gen, rarity, breedUses)
+            ).to.be.revertedWith(
+                'MonstropolyFactory: gen already exists'
+            )
         })
     })
     describe('uris stuff', () => {

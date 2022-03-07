@@ -128,18 +128,18 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function mint(address to, string calldata genetic_) public onlyRole(MINTER_ROLE) returns(uint) {
+    function mint(address to_, string calldata genetic_, uint8 rarity_, uint8 breedUses_) public onlyRole(MINTER_ROLE) returns(uint) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
 
         bytes32 genId_ = _hashGen(genetic_);
         require(!_genetics[genId_], "MonstropolyFactory: gen already exists");
         _genetics[genId_] = true;
-        Token memory token_ = Token(genetic_, block.timestamp);
+        Token memory token_ = Token(rarity_, breedUses_, block.timestamp, to_, to_, genetic_);
         _tokensById[tokenId] = token_;
-        _safeMint(to, tokenId);
+        _safeMint(to_, tokenId);
 
-        emit Mint(address(0), to, tokenId, genetic_);
+        emit Mint(address(0), to_, tokenId, rarity_, breedUses_, genetic_);
 
         return tokenId;
     }

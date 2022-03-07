@@ -22,6 +22,8 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
     string public override versionRecipient = "2.4.0";
     string[] private _genetics;
+    uint8[] private _rarities;
+    uint8[] private _breedUses;
 
     mapping(uint256 => MagicBox) public box;
     mapping(address => mapping(bool => mapping(uint => uint))) public balances;
@@ -40,16 +42,19 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
     }
 
     /// @inheritdoc IMonstropolyMagicBoxesShop
-    function updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _updateMagicBox(id, assets, price, token, burnPercentage_, treasuryPercentage_, vip);
+    function updateMagicBox(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, uint8 specie) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _updateMagicBox(id, amount, price, token, burnPercentage, treasuryPercentage, specie);
     }
 
-    function setGenetics(string[] calldata genetics_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
+    function setMintParams(string[] calldata genetics_, uint8[] calldata rarities_, uint8[] calldata breedUses_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
         delete _genetics;
+        delete _rarities;
+        delete _breedUses;
         for(uint i = 0; i < genetics_.length; i++) {
             _genetics.push(genetics_[i]);
+            _rarities.push(rarities_[i]);
+            _breedUses.push(breedUses_[i]);
         }
-        // _genetics = genetics_;
     }
 
     /// @inheritdoc IMonstropolyMagicBoxesShop
@@ -69,23 +74,32 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
             _burnFromERC20(box[id].token, account, burnAmount_);
         }
 
-        require(_genetics.length == box[id].assets.length, "MonstropolyMagicBoxesShop: not enough genetics");
+        require(_genetics.length == box[id].amount, "MonstropolyMagicBoxesShop: not enough genetics");
 
         IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
 
-        uint[] memory tokenIds_ = new uint[](box[id].assets.length);
+        uint[] memory tokenIds_ = new uint[](box[id].amount);
 
-        for(uint i = 0; i < box[id].assets.length; i++) {
-            tokenIds_[i] = factory.mint(account, _genetics[i]);
+        for(uint i = 0; i < box[id].amount; i++) {
+            if (box[id].specie != 0) _checkSpecie(_genetics[i], box[id].specie);
+            tokenIds_[i] = factory.mint(account, _genetics[i], _rarities[i], _breedUses[i]);
         }
 
         delete _genetics;
+        delete _rarities;
+        delete _breedUses;
     }
 
-    function _updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) internal {
+    function _checkSpecie(string memory gen, uint8 specie) internal view returns(bool) {
+        IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
+        uint8 decodedSpecie = uint8(data.getValueFromGen(gen, 2));
+        return specie == decodedSpecie;
+    }
+
+    function _updateMagicBox(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, uint8 specie) internal {
         require((burnPercentage_ + treasuryPercentage_) == 100 ether, "MonstropolyMagicBoxesShop: wrong percentages");
-        box[id] = MagicBox(price, token, burnPercentage_, treasuryPercentage_, vip, assets);
-        emit MagicBoxUpdated(id, assets, price, token, burnPercentage_, treasuryPercentage_, vip);
+        box[id] = MagicBox(price, token, burnPercentage_, treasuryPercentage_, amount, specie);
+        emit MagicBoxUpdated(id, amount, price, token, burnPercentage_, treasuryPercentage_, specie);
     }
 
     function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {

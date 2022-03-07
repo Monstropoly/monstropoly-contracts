@@ -5,13 +5,13 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const MAGIC_BOXES_ADDR = '0x17Aa42B56eCD825947A51895920C669A7a34E5A3'
-const FACTORY_ADDR = '0xf693938216B7E086205d885f0545C7C63A0E83FA'
+const MAGIC_BOXES_ADDR = '0xe387Be6718c67BD332a2CFd6b1A3321495B9DA87'
+const FACTORY_ADDR = '0xA97b63EEb5a25E650C67838DA62d1D186AFa868A'
 const MPOLY_ADDR = '0x6a4e41E9114B4E5528bE8C34f95a4F3134c903C7'
 const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
 const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
-const BOX_ID = 0 // 0-Character 1-Weapon 2-Character+Weapon
+const BOX_ID = 0 // 0-random, 1-4vips...
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -94,24 +94,26 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const RANDOM = ['00002718C938632B498890'] //modify manually !!!
+    const GENETICS = ['010100030101010303'] //modify manually !!!
+    const RARITIES = [1] //modify manually !!!
+    const BREED_USES = [3] //modify manually !!!
 
     // Decode openData to get ASSET and VIP
     const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('purchase', value.data)
     const _boxId = decodedOpenData.id
 
     // Check if new gen (obtained from gen) is free
-    for(let i = 0; i < RANDOM.length; i++) {
-        let isFree = await factoryContract.freeGen(RANDOM[i])
+    for(let i = 0; i < GENETICS.length; i++) {
+        let isFree = await factoryContract.freeGen(GENETICS[i])
         
         if (isFree) {
-            console.log('New gen ' + RANDOM[i] + ' is free!')
+            console.log('New gen ' + GENETICS[i] + ' is free!')
         } else {
-            console.log('Gen ' + RANDOM[i] + ' exists, generate a new random')
+            console.log('Gen ' + GENETICS[i] + ' exists, generate a new random')
         }
     }
 
-    const wrappData = magicBoxesContract.interface.encodeFunctionData('setGenetics', [RANDOM])
+    const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES])
     relayerContract = relayerContract.connect(backend)
     const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature)
     // You can find txHash in response.hash so user can await in frontend (?)
@@ -128,6 +130,8 @@ async function main() {
             console.log('    To: ', transferEvent.args.to)
             console.log('    TokenID: ', transferEvent.args.tokenId.toString())
             console.log('    Genetic: ', transferEvent.args.genetic)
+            console.log('    Rarity: ', transferEvent.args.rarity)
+            console.log('    Breed uses: ', transferEvent.args.breedUses)
         }
     })
 

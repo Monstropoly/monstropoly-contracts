@@ -1,4 +1,3 @@
-const { getWhitelistTree, solKeccak256 } = require('../utils/whitelistTree')
 const { ethers } = require('hardhat');
 
 const {
@@ -6,20 +5,19 @@ const {
 } = require('@openzeppelin/test-helpers')
 const { artifacts } = require('hardhat')
 const { expect } = require('chai')
-const Deployer = artifacts.require('MonstropolyDeployer')
-const MagicBoxes = artifacts.require('MonstropolyMagicBoxesShop')
-const AggregatorMock = artifacts.require('AggregatorMock')
-const ERC20 = artifacts.require('MonstropolyERC20')
-const UniswapFactory = artifacts.require('UniswapV2Factory')
-const UniswapRouter = artifacts.require('UniswapRouter')
-const UniswapPair = artifacts.require('IUniswapV2Pair')
-const WETH = artifacts.require('WETH')
-const DistributionVault = artifacts.require('MonstropolyDistributionVault')
-const Data = artifacts.require('MonstropolyData')
-const Factory = artifacts.require('MonstropolyFactory')
-const Science = artifacts.require('MonstropolyGenScience')
-const Relayer = artifacts.require('MonstropolyRelayer')
-const Uniswap = artifacts.require('UniswapMock')
+// const Deployer = artifacts.require('MonstropolyDeployer')
+// const MagicBoxes = artifacts.require('MonstropolyMagicBoxesShop')
+// const AggregatorMock = artifacts.require('AggregatorMock')
+// const ERC20 = artifacts.require('MonstropolyERC20')
+// const UniswapFactory = artifacts.require('UniswapV2Factory')
+// const UniswapRouter = artifacts.require('UniswapRouter')
+// const UniswapPair = artifacts.require('IUniswapV2Pair')
+// const WETH = artifacts.require('WETH')
+// const DistributionVault = artifacts.require('MonstropolyDistributionVault')
+// const Data = artifacts.require('MonstropolyData')
+// const Factory = artifacts.require('MonstropolyFactory')
+// const Relayer = artifacts.require('MonstropolyRelayer')
+// const Uniswap = artifacts.require('UniswapMock')
 
 let myUniswapFactory
 let myUniswapRouter
@@ -39,8 +37,8 @@ let accounts
 const BNB_PRICE = "50000000000"
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
-const RANDOM =  '00002718C938632B498890'
-const RANDOM1 = '00002718C938622B498A90'
+const GEN =  '010100030101010303'
+const GEN1 = '010100030102010303'
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 describe('MonstropolyMagicBoxesShop', function () {
@@ -53,55 +51,54 @@ describe('MonstropolyMagicBoxesShop', function () {
 		person = accounts[1]
 		person2 = accounts[2]
 		team = accounts[3]
-
-		const whitelistArray = [
-			owner.address,
-			person.address
-		]
-
-		whitelistTree = getWhitelistTree(whitelistArray).toJSON()
 	})
 	beforeEach(async () => {
-		myBnbUsdFeed = await AggregatorMock.new()
+		const AggregatorMock = await hre.ethers.getContractFactory('AggregatorMock')
+		myBnbUsdFeed = await AggregatorMock.deploy()
 		await myBnbUsdFeed.initialize(8, BNB_PRICE)
 
-		myDeployer = await Deployer.new()
+        const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
+		myDeployer = await MonstropolyDeployer.deploy()
 
-		const dataFactory = await hre.ethers.getContractFactory('MonstropolyData')
-		let emptyInitializeCalldata = await dataFactory.interface.encodeFunctionData('initialize', []);
+		const MonstropolyData = await hre.ethers.getContractFactory('MonstropolyData')
+		const MonstropolyMagicBoxesShop = await hre.ethers.getContractFactory('MonstropolyMagicBoxesShop')
+		const MonstropolyFactory = await hre.ethers.getContractFactory('MonstropolyFactory')
+		const MonstropolyERC20 = await hre.ethers.getContractFactory('MonstropolyERC20')
+		let emptyInitializeCalldata = await MonstropolyData.interface.encodeFunctionData('initialize', []);
 
-		await myDeployer.setId(solKeccak256("DISTRIBUTION_VAULT"), person.address)
-		await myDeployer.deploy(solKeccak256("ERC20"), ERC20.bytecode, emptyInitializeCalldata)
-		await myDeployer.deploy(solKeccak256("MAGIC_BOXES"), MagicBoxes.bytecode, emptyInitializeCalldata)
-		await myDeployer.deploy(solKeccak256("DATA"), Data.bytecode, emptyInitializeCalldata)
-		await myDeployer.deploy(solKeccak256("FACTORY"), Factory.bytecode, emptyInitializeCalldata)
-		await myDeployer.deploy(solKeccak256("SCIENCE"), Science.bytecode, emptyInitializeCalldata)
+		await myDeployer.setId(ethers.utils.id("DISTRIBUTION_VAULT"), person.address)
+		await myDeployer.deploy(ethers.utils.id("ERC20"), MonstropolyERC20.bytecode, emptyInitializeCalldata)
+		await myDeployer.deploy(ethers.utils.id("MAGIC_BOXES"), MonstropolyMagicBoxesShop.bytecode, emptyInitializeCalldata)
+		await myDeployer.deploy(ethers.utils.id("DATA"), MonstropolyData.bytecode, emptyInitializeCalldata)
+        const factoryImp = await MonstropolyFactory.deploy()
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, emptyInitializeCalldata)
 
-		const [erc20, magicBoxes, data, factory, science] = await Promise.all([
-			myDeployer.get(solKeccak256("ERC20")),
-			myDeployer.get(solKeccak256("MAGIC_BOXES")),
-			myDeployer.get(solKeccak256("DATA")),
-			myDeployer.get(solKeccak256("FACTORY")),
-			myDeployer.get(solKeccak256("SCIENCE"))
+		const [erc20, magicBoxes, data, factory] = await Promise.all([
+			myDeployer.get(ethers.utils.id("ERC20")),
+			myDeployer.get(ethers.utils.id("MAGIC_BOXES")),
+			myDeployer.get(ethers.utils.id("DATA")),
+			myDeployer.get(ethers.utils.id("FACTORY"))
 		])
 
-		myErc20 = await ethers.getContractAt('MonstropolyERC20', erc20)
-		myMagicBoxes = await MagicBoxes.at(magicBoxes)
-		myData = await Data.at(data)
-		myFactory = await Factory.at(factory)
-		myScience = await Science.at(science)
+		myErc20 = await MonstropolyERC20.attach(erc20)
+		myMagicBoxes = await MonstropolyMagicBoxesShop.attach(magicBoxes)
+		myData = await MonstropolyData.attach(data)
+		myFactory = await MonstropolyFactory.attach(factory)
 
 		await myDeployer.grantRole(MINTER_ROLE, myMagicBoxes.address);
         await myDeployer.setId(TREASURY_WALLET, team.address)
 
-		myUniswapFactory = await UniswapFactory.new(owner.address)
-		myWETH = await WETH.new()
-		myRouter = await UniswapRouter.new(myUniswapFactory.address, myWETH.address)
-		myRouter = await ethers.getContractAt('UniswapRouter', myRouter.address)
+		const UniswapV2Factory = await hre.ethers.getContractFactory('UniswapV2Factory')
+		const UniswapRouter = await hre.ethers.getContractFactory('UniswapRouter')
+		const WETH = await hre.ethers.getContractFactory('WETH')
 
-		await (await myErc20.connect(person)).approve(myRouter.address, ethers.constants.MaxUint256)
+		myUniswapFactory = await UniswapV2Factory.deploy(owner.address)
+		myWETH = await WETH.deploy()
+		myRouter = await UniswapRouter.deploy(myUniswapFactory.address, myWETH.address)
 
-		await (await myRouter.connect(person)).addLiquidityETH(
+		await myErc20.connect(person).approve(myRouter.address, ethers.constants.MaxUint256)
+
+		await myRouter.connect(person).addLiquidityETH(
 			myErc20.address,
 			ethers.utils.parseEther('12500'),
 			ethers.utils.parseEther('12500'),
@@ -112,27 +109,20 @@ describe('MonstropolyMagicBoxesShop', function () {
 		)
 
 		const poolAddress = await myUniswapFactory.getPair(myWETH.address, myErc20.address)
+		await myMagicBoxes.updateMagicBox(0, 1, ethers.utils.parseEther('1250'), myErc20.address, ethers.utils.parseEther('20'), ethers.utils.parseEther('80'), 0)
+		await myMagicBoxes.updateMagicBox(1, 4, ethers.utils.parseEther('2'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 0)
+		await myMagicBoxes.updateMagicBox(2, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 1)
+		await myMagicBoxes.updateMagicBox(3, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 2)
+		await myMagicBoxes.updateMagicBox(4, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 3)
+		await myMagicBoxes.updateMagicBox(5, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 4)
+		
+		const UniswapMock = await hre.ethers.getContractFactory('UniswapMock')
+		const MonstropolyRelayer = await hre.ethers.getContractFactory('MonstropolyRelayer')
 
-		await myMagicBoxes.updateMagicBox(0, [0], ether('1250'), myErc20.address, ether('20'), ether('80'), false)
-		await myMagicBoxes.updateMagicBox(1, [1], ether('1250'), myErc20.address, ether('20'), ether('80'), false)
-		await myMagicBoxes.updateMagicBox(2, [0, 1], ether('2125'), myErc20.address, ether('20'), ether('80'), false)
-		await myMagicBoxes.updateMagicBox(3, [0, 0, 0, 1, 1, 1], ether('1.63'), ethers.constants.AddressZero, '0', ether('100'), true)
-		myUniswap = await Uniswap.new(myErc20.address)
-		myRelayer = await Relayer.new(myUniswap.address)
+        myUniswap = await UniswapMock.deploy(myErc20.address)
+		myRelayer = await MonstropolyRelayer.deploy(myUniswap.address)
 	})
 	describe('MagicBoxes', () => {
-		// it('can purchase a box', async () => {
-		// 	await (await myErc20.connect(person)).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-		// 	const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	const response = await (await myMagicBoxes.connect(person)).purchase(0, 1)
-		// 	//TBD: find how to do it in a tx with ethers
-        //     // expectEvent(response, 'MagicBoxPurchased', {
-		// 	// 	account: person,
-		// 	// 	id: '0',
-		// 	// 	amount: '1'
-		// 	// })
-		// })
 
 		it('can open a box through GSN', async () => {
 			//signerWallet
@@ -146,10 +136,9 @@ describe('MonstropolyMagicBoxesShop', function () {
 			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
 			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
 			myMagicBoxes = myMagicBoxes.connect(person)
-			// await myMagicBoxes.purchase(0, 1)
 
 			//create meta-tx
-			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setGenetics', [[RANDOM]])
+			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
 			const openData = magicBoxesFactory.interface.encodeFunctionData('purchase', ['0'])
 			const nonce = await myRelayer.getNonce(person.address)
 

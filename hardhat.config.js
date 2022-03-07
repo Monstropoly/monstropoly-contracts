@@ -7,6 +7,7 @@ require('@openzeppelin/hardhat-upgrades')
 require('hardhat-gas-reporter')
 require("solidity-coverage");
 require('hardhat-docgen');
+require("@nomiclabs/hardhat-waffle");
 const { random, template } = require('lodash')
 const GAS_PRICE_DEFAULT = 10000000000
 const GAS_MULTIPLIER_DEFAULT = 1
@@ -213,5 +214,8 @@ module.exports = {
         'UUPSUpgradeableByRole',
         'UUPSNotUpgradeable'
     ]
+  },
+  mocha: {
+    timeout: 400000
   }
 }

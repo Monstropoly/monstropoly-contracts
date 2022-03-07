@@ -14,10 +14,10 @@ interface IMonstropolyMagicBoxesShop {
         uint256 burnPercentage;
         // Percentage of the price to send to treasury (in ether units)
         uint256 treasuryPercentage;
-        // Used to calculate rarity
-        bool vip;
         // Assets inside the box
-        uint256[] assets;
+        uint256 amount;
+        // specie
+        uint8 specie;
     }
 
     /// @notice Emitted when a Magic Box is bought
@@ -36,13 +36,13 @@ interface IMonstropolyMagicBoxesShop {
 
     /// @notice Emitted when a Magic Box is updated
     /// @param id Identificator of the Magic Box
-    /// @param assets Array containing the assets of the box
+    /// @param amount Amount of NFTs minted
     /// @param price Price of the Magic Box
     /// @param token Address of the token to buy the box (address(0) to ETH)
     /// @param burnPercentage Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage Percentage of the price to send to treasury (in ether units)
-    /// @param vip Used to calculate rarity
-    event MagicBoxUpdated(uint256 id, uint256[] assets, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, bool vip);
+    /// @param specie Specie of the NFT
+    event MagicBoxUpdated(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, uint8 specie);
 
     /// @notice Sets address for trusted MonstropolyRelayer
     /// @param _forwarder MonstropolyRelayer address
@@ -50,13 +50,13 @@ interface IMonstropolyMagicBoxesShop {
 
     /// @notice Updates a Magic Box
     /// @param id Identificator of the Magic Box
-    /// @param assets Array containing the assets of the box
+    /// @param amount Amount of NFTs to mint
     /// @param price Price of the Magic Box
     /// @param token Address of the token to buy the box (address(0) to ETH)
     /// @param burnPercentage_ Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage_ Percentage of the price to send to treasury (in ether units)
-    /// @param vip Used to calculate rarity
-    function updateMagicBox(uint256 id, uint256[] memory assets, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, bool vip) external;
+    /// @param specie Specie of the NFT
+    function updateMagicBox(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, uint8 specie) external;
 
     /// @notice Purchases Magic Boxes
     /// @param id Identificator of the Magic Box

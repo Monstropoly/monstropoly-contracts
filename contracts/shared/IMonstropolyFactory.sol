@@ -8,10 +8,14 @@ import "./IMonstropolyData.sol";
 interface IMonstropolyFactory {
 
     struct Token {
+        uint8 rarity;
+        uint8 breedUses;
+        // NFT creation timestamp
+        uint bornAt; //TBD: use smaller uint and try to organize to save gas
+        address gamer;
+        address breeder;
         // string defining NFT random and module values
         string genetic;
-        // NFT creation timestamp
-        uint bornAt;
     }
 
     /// @notice Emitted when a NFT is minted
@@ -19,7 +23,7 @@ interface IMonstropolyFactory {
     /// @param to Address of the receiver
     /// @param tokenId Unique uint identificator of NFT
     /// @param genetic String defining NFT random and module values
-    event Mint(address indexed from, address indexed to, uint256 indexed tokenId, string genetic);
+    event Mint(address indexed from, address indexed to, uint256 indexed tokenId, uint8 rarity, uint8 breedUses, string genetic);
 
     /// @notice Returns if to is approved or owner
     /// @dev calls to _isApprovedOrOwner
@@ -72,7 +76,7 @@ interface IMonstropolyFactory {
     /// @param to Receiver of the NFT
     /// @param genes String defining NFT random and module values
     /// @return tokenId
-    function mint(address to, string memory genes) external virtual returns(uint);
+    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses) external virtual returns(uint);
 
     /// @notice Sets base URI used in tokenURI
     /// @param newBaseTokenURI String with base URI
