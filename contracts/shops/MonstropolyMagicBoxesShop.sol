@@ -26,7 +26,7 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
     uint8[] private _breedUses;
 
     mapping(uint256 => MagicBox) public box;
-    mapping(address => mapping(bool => mapping(uint => uint))) public balances;
+    mapping(uint256 => uint256) public boxSupply;
 
     function initialize() public initializer {
         _init();
@@ -46,6 +46,12 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
         _updateMagicBox(id, amount, price, token, burnPercentage, treasuryPercentage, specie);
     }
 
+    /// @inheritdoc IMonstropolyMagicBoxesShop
+    function updateBoxSupply(uint256 id, uint256 supply) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        boxSupply[id] = supply;
+        emit UpdateBoxSupply(id, supply);
+    }
+
     function setMintParams(string[] calldata genetics_, uint8[] calldata rarities_, uint8[] calldata breedUses_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
         delete _genetics;
         delete _rarities;
@@ -59,6 +65,8 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
     /// @inheritdoc IMonstropolyMagicBoxesShop
     function purchase(uint id) public payable virtual {
+        require(boxSupply[id] > 0, "MonstropolyMagicBoxesShop: no box supply");
+        boxSupply[id]--;
         address account = _msgSender();
         uint256 price = box[id].price;
         

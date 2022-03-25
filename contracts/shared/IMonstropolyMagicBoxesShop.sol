@@ -44,9 +44,19 @@ interface IMonstropolyMagicBoxesShop {
     /// @param specie Specie of the NFT
     event MagicBoxUpdated(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, uint8 specie);
 
+    /// @notice Emitted when a Magic Box's supply is updated
+    /// @param id Identificator of the Magic Box
+    /// @param supply Updated supply
+    event UpdateBoxSupply(uint256 id, uint256 supply);
+
     /// @notice Sets address for trusted MonstropolyRelayer
     /// @param _forwarder MonstropolyRelayer address
     function setTrustedForwarder(address _forwarder) external;
+
+    /// @notice Updates a Magic Box
+    /// @param id Identificator of the Magic Box
+    /// @param supply New supply
+    function updateBoxSupply(uint256 id, uint256 supply) external;
 
     /// @notice Updates a Magic Box
     /// @param id Identificator of the Magic Box
