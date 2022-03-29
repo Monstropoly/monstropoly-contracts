@@ -11,7 +11,7 @@ const MPOLY_ADDR = '0x6a4e41E9114B4E5528bE8C34f95a4F3134c903C7'
 const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
 const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
-const BOX_ID = 0 // 0-random, 1-4vips...
+const BOX_ID = 3 // 0-random, 1-4vips...
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -32,17 +32,35 @@ async function main() {
 
     /*** USER */
 
-    const allowanceMagicBoxes = await mpolyContract.allowance(user.address, MAGIC_BOXES_ADDR)
-    const allowancePaymaster = await mpolyContract.allowance(user.address, PAYMASTER_ADDR)
+    const box = await magicBoxesContract.box(BOX_ID)
+    const boxSupply = await magicBoxesContract.boxSupply(BOX_ID)
 
-    if (allowanceMagicBoxes.toString() == '0') {
-        console.log('ERC20 approve to MagicBoxesShop...')
-        await mpolyContract.approve(MAGIC_BOXES_ADDR, ethers.constants.MaxUint256)
+    if (boxSupply.isZero()) {
+        console.log('Box supply is 0')
+    } else {
+        console.log('Enough box supply...')
     }
 
-    if (allowancePaymaster.toString() == '0') {
-        console.log('ERC20 approve to Paymaster...')
-        await mpolyContract.approve(PAYMASTER_ADDR, ethers.constants.MaxUint256)
+    let reqValue = ethers.BigNumber.from('0')
+    if (box.token.toLowerCase() == MPOLY_ADDR.toLocaleLowerCase()) {
+        console.log('Payment in MPOLY...')
+        const allowanceMagicBoxes = await mpolyContract.allowance(user.address, MAGIC_BOXES_ADDR)
+        const allowancePaymaster = await mpolyContract.allowance(user.address, PAYMASTER_ADDR)
+
+        if (allowanceMagicBoxes.toString() == '0') {
+            console.log('ERC20 approve to MagicBoxesShop...')
+            await mpolyContract.approve(MAGIC_BOXES_ADDR, ethers.constants.MaxUint256)
+        }
+
+        if (allowancePaymaster.toString() == '0') {
+            console.log('ERC20 approve to Paymaster...')
+            await mpolyContract.approve(PAYMASTER_ADDR, ethers.constants.MaxUint256)
+        }
+    } else if (box.token == ethers.constants.AddressZero) {
+        console.log('Payment in BNB...')
+        reqValue = ethers.BigNumber.from(box.price.toString())
+    } else {
+        console.log('Unknown payment token')
     }
     
     console.log('Preparing offchain signature...')
@@ -71,8 +89,8 @@ async function main() {
     const value = {
         from: user.address,
         to: MAGIC_BOXES_ADDR,
-        value: 0,
-        gas: 3000000, //ToDo: estimate gas for this, not ready
+        value: reqValue,
+        gas: 2500000, //ToDo: estimate gas for this, not ready
         nonce: nonce,
         data: openData.toString(),
         validUntil: 0
@@ -94,7 +112,7 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const GENETICS = ['010100030101010303'] //modify manually !!!
+    const GENETICS = ['010100030101010302'] //modify manually !!!
     const RARITIES = [1] //modify manually !!!
     const BREED_USES = [3] //modify manually !!!
 
@@ -115,7 +133,7 @@ async function main() {
 
     const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES])
     relayerContract = relayerContract.connect(backend)
-    const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature)
+    const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature, { value: reqValue })
     // You can find txHash in response.hash so user can await in frontend (?)
     const receipt = await response.wait()
     // const receipt = await ethers.provider.getTransactionReceipt(response.hash) //that's how you can do it in frontend
