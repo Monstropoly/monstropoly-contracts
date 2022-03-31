@@ -4,9 +4,12 @@
 /node_modules
 /.pnp
 .pnp.js
+package-lock.json
 
 # testing
 /coverage
+/coverage.json
+coverage.json
 
 # next.js
 /.next/
@@ -38,9 +41,6 @@ yarn-error.log*
 .vercel
 .yalc
 yalc.lock
-
-holders.json
-team.json
 
 /artifacts
 /cache
