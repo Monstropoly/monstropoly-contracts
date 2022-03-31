@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
 import "./IMonstropolyData.sol";
@@ -52,7 +53,7 @@ interface IMonstropolyFactory {
     /// @return True for locked false for unlocked
     function isLocked(uint256 tokenId) external view returns(bool);
 
-    /// @notice Returns wether or not the tokenId exists
+    /// @notice Returns whether or not the tokenId exists
     /// @param tokenId Unique uint identificator of NFT
     /// @return True if exists, false inexistent
     function exists(uint256 tokenId) external view returns (bool);
@@ -76,7 +77,7 @@ interface IMonstropolyFactory {
     /// @param to Receiver of the NFT
     /// @param genes String defining NFT random and module values
     /// @return tokenId
-    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses) external virtual returns(uint);
+    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses) external returns(uint);
 
     /// @notice Sets base URI used in tokenURI
     /// @param newBaseTokenURI String with base URI

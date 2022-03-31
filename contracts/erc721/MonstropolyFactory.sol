@@ -113,8 +113,8 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setContractURI(string memory contractURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setContractURI(contractURI);
+    function setContractURI(string memory contractURI_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContractURI(contractURI_);
     }
 
     /// @inheritdoc IMonstropolyFactory
@@ -152,12 +152,12 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
         _baseTokenURI = newBaseTokenURI;
     }
 
-    function _setContractURI(string memory contractURI) internal {
-        _contractUri = contractURI;
+    function _setContractURI(string memory contractURI_) internal {
+        _contractUri = contractURI_;
     }
 
     /// @dev Deconstructs gen and computes its hash
-    function _hashGen(string memory gen) public view returns(bytes32) {
+    function _hashGen(string memory gen) public pure returns(bytes32) {
         return keccak256(abi.encodePacked(gen));
         // return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
     }

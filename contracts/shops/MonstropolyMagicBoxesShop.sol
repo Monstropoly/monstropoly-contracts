@@ -5,6 +5,7 @@ import "../shared/IMonstropolyFactory.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../utils/CoinCharger.sol";
 import "../shared/IMonstropolyDeployer.sol";
+import "../shared/IMonstropolyTickets.sol";
 import "../shared/IMonstropolyMagicBoxesShop.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
@@ -27,6 +28,11 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
     mapping(uint256 => MagicBox) public box;
     mapping(uint256 => uint256) public boxSupply;
+
+    bytes32 public constant DATA_ID = keccak256("DATA");
+    bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
+    bytes32 public constant FACTORY_ID = keccak256("FACTORY");
+    bytes32 public constant TICKETS_ID = keccak256("TICKETS");
 
     function initialize() public initializer {
         _init();
@@ -65,26 +71,39 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
     /// @inheritdoc IMonstropolyMagicBoxesShop
     function purchase(uint id) public payable virtual {
-        require(boxSupply[id] > 0, "MonstropolyMagicBoxesShop: no box supply");
-        boxSupply[id]--;
+        _spendBoxSupply(id);
         address account = _msgSender();
         uint256 price = box[id].price;
         
         require(price > 0, "MonstropolyMagicBoxesShop: wrong 0 price");
 
         if (box[id].treasuryPercentage > 0) {
-            uint treasuryAmount_ = price * box[id].treasuryPercentage /  100 ether;
-            _transferFrom(box[id].token, account, IMonstropolyDeployer(config).get(keccak256("TREASURY_WALLET")), treasuryAmount_);
+            uint treasuryAmount_ = price * box[id].treasuryPercentage / 100 ether;
+            _transferFrom(box[id].token, account, IMonstropolyDeployer(config).get(TREASURY_WALLET_ID), treasuryAmount_);
         }
 
         if (box[id].burnPercentage > 0) {
-            uint burnAmount_ = price * box[id].burnPercentage /  100 ether;
+            uint burnAmount_ = price * box[id].burnPercentage / 100 ether;
             _burnFromERC20(box[id].token, account, burnAmount_);
         }
 
+        _mintNFT(id, account);
+    }
+
+    function purchaseWithTicket(uint tokenId) public {
+        address account = _msgSender();
+        IMonstropolyTickets tickets = IMonstropolyTickets(IMonstropolyDeployer(config).get(TICKETS_ID));
+        uint id = tickets.boxIdOfToken(tokenId);
+        require(account == tickets.ownerOf(tokenId));
+        _spendBoxSupply(id);
+        tickets.burn(tokenId);
+        _mintNFT(id, account);
+    }
+
+    function _mintNFT(uint id, address account) internal {
         require(_genetics.length == box[id].amount, "MonstropolyMagicBoxesShop: not enough genetics");
 
-        IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(keccak256("FACTORY")));
+        IMonstropolyFactory factory = IMonstropolyFactory(IMonstropolyDeployer(config).get(FACTORY_ID));
 
         uint[] memory tokenIds_ = new uint[](box[id].amount);
 
@@ -98,8 +117,13 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
         delete _breedUses;
     }
 
+    function _spendBoxSupply(uint id) internal {
+        require(boxSupply[id] > 0, "MonstropolyMagicBoxesShop: no box supply");
+        boxSupply[id]--;
+    }
+
     function _checkSpecie(string memory gen, uint8 specie) internal view returns(bool) {
-        IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA")));
+        IMonstropolyData data = IMonstropolyData(IMonstropolyDeployer(config).get(DATA_ID));
         uint8 decodedSpecie = uint8(data.getValueFromGen(gen, 2));
         return specie == decodedSpecie;
     }

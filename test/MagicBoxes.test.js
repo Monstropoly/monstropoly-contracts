@@ -30,13 +30,14 @@ let myBnbUsdFeed
 let whitelistTree
 let myDistributionVault
 let myWETH
-let myData, myFactory, myScience, myRelayer, myUniswap
+let myData, myFactory, myTickets, myRelayer, myUniswap
 
 let accounts
 
 const BNB_PRICE = "50000000000"
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
+const TICKETS = ethers.utils.id('TICKETS')
 const GEN =  '010100030101010303'
 const GEN1 = '010100030102010303'
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -45,7 +46,6 @@ describe('MonstropolyMagicBoxesShop', function () {
 	let owner, person, person2
 
 	before(async () => {
-		await hre.run('compile')
 		accounts = await ethers.getSigners();
 		owner = accounts[0]
 		person = accounts[1]
@@ -53,6 +53,13 @@ describe('MonstropolyMagicBoxesShop', function () {
 		team = accounts[3]
 	})
 	beforeEach(async () => {
+		const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
+        const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
+        const implementation = await MonstropolyTickets.deploy()
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', []);
+        const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
+        myTickets = MonstropolyTickets.attach(myProxy.address)
+
 		const AggregatorMock = await hre.ethers.getContractFactory('AggregatorMock')
 		myBnbUsdFeed = await AggregatorMock.deploy()
 		await myBnbUsdFeed.initialize(8, BNB_PRICE)
@@ -67,6 +74,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 		let emptyInitializeCalldata = await MonstropolyData.interface.encodeFunctionData('initialize', []);
 
 		await myDeployer.setId(ethers.utils.id("DISTRIBUTION_VAULT"), person.address)
+		await myDeployer.setId(ethers.utils.id("TICKETS"), myTickets.address)
 		await myDeployer.deploy(ethers.utils.id("ERC20"), MonstropolyERC20.bytecode, emptyInitializeCalldata)
 		await myDeployer.deploy(ethers.utils.id("MAGIC_BOXES"), MonstropolyMagicBoxesShop.bytecode, emptyInitializeCalldata)
 		await myDeployer.deploy(ethers.utils.id("DATA"), MonstropolyData.bytecode, emptyInitializeCalldata)
@@ -116,6 +124,13 @@ describe('MonstropolyMagicBoxesShop', function () {
 		await myMagicBoxes.updateMagicBox(4, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 3)
 		await myMagicBoxes.updateMagicBox(5, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'), 4)
 		
+		await myMagicBoxes.updateBoxSupply(0, 1000)
+		await myMagicBoxes.updateBoxSupply(1, 1000)
+		await myMagicBoxes.updateBoxSupply(2, 1000)
+		await myMagicBoxes.updateBoxSupply(3, 1000)
+		await myMagicBoxes.updateBoxSupply(4, 1000)
+		await myMagicBoxes.updateBoxSupply(5, 1000)
+		
 		const UniswapMock = await hre.ethers.getContractFactory('UniswapMock')
 		const MonstropolyRelayer = await hre.ethers.getContractFactory('MonstropolyRelayer')
 
@@ -124,7 +139,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 	})
 	describe('MagicBoxes', () => {
 
-		it('can open a box through GSN', async () => {
+		it('can open a box through GSN paying price', async () => {
 			//signerWallet
 			myErc20 = myErc20.connect(person)
 			const paymaster = await myRelayer.paymaster()
@@ -140,6 +155,64 @@ describe('MonstropolyMagicBoxesShop', function () {
 			//create meta-tx
 			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
 			const openData = magicBoxesFactory.interface.encodeFunctionData('purchase', ['0'])
+			const nonce = await myRelayer.getNonce(person.address)
+
+			//sign
+			const domain = {
+				name: 'MonstropolyRelayer',
+				version: '1',
+				chainId: ethers.provider._network.chainId,
+				verifyingContract: myRelayer.address
+			}
+
+			const types = {
+				Execute: [
+					{ name: 'from', type: 'address' },
+					{ name: 'to', type: 'address' },
+					{ name: 'value', type: 'uint256' },
+					{ name: 'gas', type: 'uint256' },
+					{ name: 'nonce', type: 'uint256' },
+					{ name: 'data', type: 'bytes' },
+					{ name: 'validUntil', type: 'uint256' }
+				]
+			}
+
+			const value = {
+				from: person.address,
+				to: myMagicBoxes.address,
+				value: 0,
+				gas: 3000000,
+				nonce: nonce.toString(),
+				data: openData,
+				validUntil: 0
+			}
+			const signature = await person._signTypedData(domain, types, value);
+
+			const response = await myRelayer.callAndRelay(setRandomData, myMagicBoxes.address, value, signature)
+			let owner0 = await myFactory.ownerOf(0)
+
+			expect(owner0).to.eq(person.address)
+		})
+
+		it('can open a box through GSN spending a ticket', async () => {
+			const boxId = 0
+			await myTickets.mint(person.address, boxId)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			//signerWallet
+			myErc20 = myErc20.connect(person)
+			const paymaster = await myRelayer.paymaster()
+			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
+			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+
+			//purchase
+			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
+			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
+			myMagicBoxes = myMagicBoxes.connect(person)
+
+			//create meta-tx
+			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
+			const openData = magicBoxesFactory.interface.encodeFunctionData('purchaseWithTicket', ['0'])
 			const nonce = await myRelayer.getNonce(person.address)
 
 			//sign
