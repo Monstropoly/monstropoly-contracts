@@ -56,7 +56,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 		const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
         const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
         const implementation = await MonstropolyTickets.deploy()
-        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', []);
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [0, ethers.constants.AddressZero]);
         const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
         myTickets = MonstropolyTickets.attach(myProxy.address)
 
@@ -130,6 +130,8 @@ describe('MonstropolyMagicBoxesShop', function () {
 		await myMagicBoxes.updateBoxSupply(3, 1000)
 		await myMagicBoxes.updateBoxSupply(4, 1000)
 		await myMagicBoxes.updateBoxSupply(5, 1000)
+
+		await myMagicBoxes.updateTicketToBoxId(myTickets.address, 0, true)
 		
 		const UniswapMock = await hre.ethers.getContractFactory('UniswapMock')
 		const MonstropolyRelayer = await hre.ethers.getContractFactory('MonstropolyRelayer')
@@ -195,8 +197,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 		})
 
 		it('can open a box through GSN spending a ticket', async () => {
-			const boxId = 0
-			await myTickets.mint(person.address, boxId)
+			await myTickets.mint(person.address)
 			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
 
 			//signerWallet
@@ -212,7 +213,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			//create meta-tx
 			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
-			const openData = magicBoxesFactory.interface.encodeFunctionData('purchaseWithTicket', ['0'])
+			const openData = magicBoxesFactory.interface.encodeFunctionData('purchaseWithTicket', ['0', myTickets.address, '0'])
 			const nonce = await myRelayer.getNonce(person.address)
 
 			//sign

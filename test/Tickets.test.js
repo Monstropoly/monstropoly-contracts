@@ -15,35 +15,42 @@ const CONTRACT_URI = 'https://monstropoly.io/ticketsContractUri/'
 const CONTRACT_URI2 = 'https://ifps.io/ipfs/'
 const IPFS_CID = 'QmVSjEGecMaM6xSA9ZRoT565t7zHgYnabYrKcB9pSka78z'
 const _INTERFACE_ID_ERC721_METADATA = '0x5b5e139f';
+const LAUNCHPAD_MAX_SUPPLY = 10
+const LAUNCHPAD_MAX_BATCH = 3
+const LAUNCHPAD_MAX_PER_ADDRESS = 5
+const LAUNCHPAD_PRICE = ethers.utils.parseEther('1')
 
-let myTickets
+let myTickets, myLaunchpad
 
 let accounts
 
 describe('MonstropolyTickets', function () {
-    let owner, person, person2
+    let owner, person, person2, payee, validator
 
     before(async () => {
         accounts = await ethers.getSigners();
         owner = accounts[0]
         person = accounts[1]
         person2 = accounts[2]
+        payee = accounts[3]
+        validator = accounts[3]
     })
 
     beforeEach(async () => {
         const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
+        const Launchpad = await ethers.getContractFactory('Launchpad')
         const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
+        myLaunchpad = await Launchpad.deploy()
         const implementation = await MonstropolyTickets.deploy()
-        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', []);
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
         const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
         myTickets = MonstropolyTickets.attach(myProxy.address)
     })
 
     describe('mint', () => {
         it('can mint and emit Transfer event', async () => {
-            const boxId = 0
             await expect(
-                myTickets.mint(person.address, boxId)
+                myTickets.mint(person.address)
             ).to.emit(
                 myTickets, 'Transfer'
             ).withArgs(
@@ -53,27 +60,23 @@ describe('MonstropolyTickets', function () {
             )
 
             const _owner = await myTickets.ownerOf(0)
-            const _boxId = await myTickets.boxIdOfToken(0)
             const _balance = await myTickets.balanceOf(person.address)
             expect(_owner).to.equal(person.address)
-            expect(_boxId).to.equal(boxId)
             expect(_balance).to.equal(1)
         })
 
         it('only MINTER_ROLE can mint', async () => {
-            const boxId = 0
             await expect(
-                myTickets.connect(person).mint(person.address, boxId)
+                myTickets.connect(person).mint(person.address)
             ).to.be.revertedWith(
                 'AccessControl: account ' + String(person.address).toLowerCase() + ' is missing role ' + MINTER_ROLE
             )
         })
 
         it('can mintBatch and emit Transfer event', async () => {
-            const boxId = 1
             const amount = 10
             await expect(
-                myTickets.mintBatch(person.address, boxId, amount)
+                myTickets.mintBatch(person.address, amount)
             ).to.emit(
                 myTickets, 'Transfer'
             ).withArgs(
@@ -84,20 +87,11 @@ describe('MonstropolyTickets', function () {
 
             for (let i = 0; i < amount; i++) {
                 const _owner = await myTickets.ownerOf(i)
-                const _boxId = await myTickets.boxIdOfToken(i)
                 expect(_owner).to.equal(person.address)
-                expect(_boxId).to.equal(boxId)
             }
 
             const _balance = await myTickets.balanceOf(person.address)
             expect(_balance).to.equal(10)
-        })
-
-        it('reverts when boxIdOfToken of inexistent', async () => {
-            await expectRevert(
-                myTickets.boxIdOfToken('0'),
-                'MonstropolyTickets: inexistent'
-            )
         })
     })
 
@@ -139,15 +133,13 @@ describe('MonstropolyTickets', function () {
         })
 
         it('can get tokenURI', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             let tokenURI = await myTickets.tokenURI('0')
             expect(tokenURI).to.equal(BASE_URI + '0')
         })
 
         it('can get tokenURI after setBaseURI', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             let tokenURI = await myTickets.tokenURI('0')
             await myTickets.setBaseURI(BASE_URI2)
             let tokenURI2 = await myTickets.tokenURI('0')
@@ -158,23 +150,20 @@ describe('MonstropolyTickets', function () {
 
     describe('approvals', () => {
         it('can get isApproved being the owner', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             let approval = await myTickets.isApproved(person.address, '0')
             expect(approval).to.equal(true)
         })
 
         it('can get isApproved after approve', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             await myTickets.connect(person).approve(person2.address, '0')
             let approval = await myTickets.isApproved(person2.address, '0')
             expect(approval).to.equal(true)
         })
 
         it('can get isApproved after setApprovalForAll', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             await myTickets.connect(person).setApprovalForAll(person2.address, true)
             let approval = await myTickets.isApproved(person2.address, '0')
             expect(approval).to.equal(true)
@@ -190,8 +179,7 @@ describe('MonstropolyTickets', function () {
 
     describe('burn', () => {
         it('can burn being owner', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             let existence = await myTickets.exists('0')
             expect(existence).to.equal(true)
             await myTickets.connect(person).burn('0')
@@ -200,8 +188,7 @@ describe('MonstropolyTickets', function () {
         })
 
         it('can burn being approved', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             await myTickets.connect(person).approve(person2.address, '0')
             let existence = await myTickets.exists('0')
             expect(existence).to.equal(true)
@@ -211,14 +198,217 @@ describe('MonstropolyTickets', function () {
         })
 
         it('can burn being operator', async () => {
-            const boxId = 1
-            await myTickets.mint(person.address, boxId)
+            await myTickets.mint(person.address)
             await myTickets.connect(person).setApprovalForAll(person2.address, true)
             let existence = await myTickets.exists('0')
             expect(existence).to.equal(true)
             await myTickets.connect(person2).burn('0')
             existence = await myTickets.exists('0')
             expect(existence).to.equal(false)
+        })
+    })
+
+    describe('Galler', () => {
+        const listingTime = parseInt(Date.now() * 2 / 1000)
+        const expirationTime = parseInt(Date.now() * 3 / 1000)
+        beforeEach(async () => {
+            await myLaunchpad.addCampaign(
+                myTickets.address,
+                1,
+                payee.address,
+                LAUNCHPAD_PRICE,
+                listingTime,
+                expirationTime,
+                LAUNCHPAD_MAX_SUPPLY,
+                LAUNCHPAD_MAX_BATCH,
+                LAUNCHPAD_MAX_PER_ADDRESS,
+                validator.address
+            )
+        })
+
+        it('cant mintWhitelisted before listingTime', async () => {
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            
+            await expect(
+                myLaunchpad.connect(person).mintWhitelisted(
+                    myTickets.address, 
+                    1, 
+                    signature, 
+                    { value: LAUNCHPAD_PRICE }
+                )
+            ).to.be.revertedWith(
+                'activity not start'
+            )
+        })
+
+        it('can mintWhitelisted', async () => {
+
+            await ethers.provider.send("evm_setNextBlockTimestamp", [listingTime])
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            await myLaunchpad.connect(person).mintWhitelisted(
+                myTickets.address, 
+                1, 
+                signature, 
+                { value: LAUNCHPAD_PRICE }
+            )
+
+            const _owner = await myTickets.ownerOf(0)
+            expect(_owner).to.equal(person.address)
+        })
+
+        it('cant mintWhitelisted more than batch size', async () => {
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            
+            await expect(
+                myLaunchpad.connect(person).mintWhitelisted(
+                    myTickets.address, 
+                    11, 
+                    signature, 
+                    { value: ethers.utils.parseEther('11') }
+                )
+            ).to.be.revertedWith(
+                'reach max batch size'
+            )
+        })
+
+        it('cant mintWhitelisted more than per address limit', async () => {
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+
+            await myLaunchpad.connect(person).mintWhitelisted(
+                myTickets.address, 
+                3, 
+                signature, 
+                { value: ethers.utils.parseEther('3') }
+            )
+            
+            await expect(
+                myLaunchpad.connect(person).mintWhitelisted(
+                    myTickets.address, 
+                    3, 
+                    signature, 
+                    { value: ethers.utils.parseEther('3') }
+                )
+            ).to.be.revertedWith(
+                'reach max per address limit'
+            )
+        })
+
+        it('cant mintWhitelisted more than Tickets.LAUNCH_MAX_SUPPLY', async () => {
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+
+            await myTickets.updateLaunchpadConfig(1, myLaunchpad.address)
+            
+            await expect(
+                myLaunchpad.connect(person).mintWhitelisted(
+                    myTickets.address, 
+                    2, 
+                    signature, 
+                    { value: ethers.utils.parseEther('2') }
+                )
+            ).to.be.revertedWith(
+                'MonstropolyTickets: max launchpad supply reached'
+            )
+        })
+
+        it('only launchpad can call mintTo', async () => {
+
+            await myTickets.updateLaunchpadConfig(100, ethers.constants.AddressZero)
+            
+            await expect(
+                myTickets.mintTo(
+                    person.address, 
+                    1
+                )
+            ).to.be.revertedWith(
+                "MonstropolyTickets: launchpad address must set"
+            )
+        })
+
+        it('only launchpad can call mintTo', async () => {
+            
+            await expect(
+                myTickets.mintTo(
+                    person.address, 
+                    1
+                )
+            ).to.be.revertedWith(
+                "MonstropolyTickets: must call by launchpad"
+            )
+        })
+
+        it('cant mintTo zero address', async () => {
+
+            await myTickets.updateLaunchpadConfig(100, owner.address)
+            
+            await expect(
+                myTickets.mintTo(
+                    ethers.constants.AddressZero, 
+                    2
+                )
+            ).to.be.revertedWith(
+                "MonstropolyTickets: can't mint to empty address"
+            )
+        })
+
+        it('cant mintTo with size zero', async () => {
+
+            await myTickets.updateLaunchpadConfig(100, owner.address)
+            
+            await expect(
+                myTickets.mintTo(
+                    person.address, 
+                    0
+                )
+            ).to.be.revertedWith(
+                "MonstropolyTickets: size must greater than zero"
+            )
+        })
+
+        it('cant mintWhitelisted after expirationTime', async () => {
+
+            await ethers.provider.send("evm_setNextBlockTimestamp", [expirationTime + 1])
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, person.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            
+            await expect(
+                myLaunchpad.connect(person).mintWhitelisted(
+                    myTickets.address, 
+                    1, 
+                    signature, 
+                    { value: LAUNCHPAD_PRICE }
+                )
+            ).to.be.revertedWith(
+                'activity ended'
+            )
         })
     })
 })

@@ -49,6 +49,12 @@ interface IMonstropolyMagicBoxesShop {
     /// @param supply Updated supply
     event UpdateBoxSupply(uint256 id, uint256 supply);
 
+    /// @notice Emitted when a Magic Box's supply is updated
+    /// @param ticketAddress Address of the tickets contract
+    /// @param boxId Box identificator
+    /// @param isValid Whether or not is valid ticket to boxId
+    event UpdateTicketBoxId(address ticketAddress, uint256 boxId, bool isValid);
+
     /// @notice Sets address for trusted MonstropolyRelayer
     /// @param _forwarder MonstropolyRelayer address
     function setTrustedForwarder(address _forwarder) external;

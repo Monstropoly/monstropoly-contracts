@@ -10,11 +10,6 @@ interface IMonstropolyTickets {
   /// @return _baseURI
   function baseURI (  ) external view returns ( string calldata );
 
-  /// @notice Returns boxId of tokenId
-  /// @param tokenId Unique uint identificator of NFT
-  /// @return boxId
-  function boxIdOfToken ( uint256 tokenId ) external view returns ( uint256 );
-
   /// @notice Returns URI of the contract
   /// @return URI of the contract
   function contractURI (  ) external view returns ( string calldata );
@@ -38,13 +33,11 @@ interface IMonstropolyTickets {
 
   /// @notice Mints NFTs with of some box ID
   /// @param to Receiver of the NFT
-  /// @param boxId ID of the box
-  function mint ( address to, uint256 boxId ) external;
+  function mint ( address to ) external returns(uint256);
 
   /// @notice Mints amount of NFTs with of some box ID
   /// @param to Receiver of the NFT
-  /// @param boxId ID of the box
-  function mintBatch ( address to, uint256 boxId, uint256 amount ) external;
+  function mintBatch ( address to, uint256 amount ) external;
 
   function burn(uint256 tokenId) external;
 

@@ -7,11 +7,15 @@ const { ethers } = require('hardhat');
 
 const MAGIC_BOXES_ADDR = '0xe387Be6718c67BD332a2CFd6b1A3321495B9DA87'
 const FACTORY_ADDR = '0xA97b63EEb5a25E650C67838DA62d1D186AFa868A'
-const TICKETS_ADDR = '0x090038c87d0008F19Db1Df8471448b770e08CA22'
 const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
 const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
+const TICKETS_ADDR = '0xd1D3372Ac509890e9a945111CdaCfBfF19ea2190' // BOX_IDs: 0
+// const TICKETS_ADDR = '0x59F4A0C7623335FAC473f1d83D52487440f2E261' // BOX_IDs: 1
+// const TICKETS_ADDR = '0x4AaFb46C74D4Cd17D59190dc0B86A0b9e041C6e8' // BOX_IDs: 2, 3, 4, 5
+
 const NFT_ID = 0
+const BOX_ID = 0
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -32,11 +36,10 @@ async function main() {
 
     /*** USER */
 
-    const boxId = await ticketsContract.boxIdOfToken(NFT_ID)
     const owner = await ticketsContract.ownerOf(NFT_ID)
 
-    const box = await magicBoxesContract.box(boxId)
-    const boxSupply = await magicBoxesContract.boxSupply(boxId)
+    const box = await magicBoxesContract.box(BOX_ID)
+    const boxSupply = await magicBoxesContract.boxSupply(BOX_ID)
 
     if (boxSupply.isZero()) {
         console.log('Box supply is 0')
@@ -55,7 +58,7 @@ async function main() {
     }
     
     console.log('Preparing offchain signature...')
-    const openData = magicBoxesContract.interface.encodeFunctionData('purchaseWithTicket', [NFT_ID]);
+    const openData = magicBoxesContract.interface.encodeFunctionData('purchaseWithTicket', [NFT_ID, TICKETS_ADDR, BOX_ID]);
     const nonce = await relayerContract.getNonce(user.address)
 
     const domain = {
@@ -103,7 +106,7 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const GENETICS = ['010100030101010305'] //modify manually !!!
+    const GENETICS = ['010100030101010309'] //modify manually !!!
     const RARITIES = [1] //modify manually !!!
     const BREED_USES = [3] //modify manually !!!
 

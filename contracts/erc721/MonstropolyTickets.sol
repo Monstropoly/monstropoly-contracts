@@ -20,13 +20,21 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
     string private _baseTokenURI;
     string private _contractUri;
 
-    mapping(uint256 => uint256) private _idToBox; // tokenId => boxId
+    uint256 public LAUNCH_MAX_SUPPLY;    // max launch supply
+    uint256 public LAUNCH_SUPPLY;        // current launch supply
+    address public LAUNCHPAD;
+
+    modifier onlyLaunchpad() {
+        require(LAUNCHPAD != address(0), "MonstropolyTickets: launchpad address must set");
+        require(msg.sender == LAUNCHPAD, "MonstropolyTickets: must call by launchpad");
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() initializer {}
 
-    function initialize() initializer public {
-        __ERC721_init("MyToken", "MTK");
+    function initialize(uint256 launchpadMaxSupply, address launchpad) initializer public {
+        __ERC721_init("Monstropoly Boxes", "MPB");
         __ERC721Enumerable_init();
         __ERC721Burnable_init();
         __AccessControl_init();
@@ -38,6 +46,9 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
 
         _setBaseURI("https://monstropoly.io/tickets/");
         _setContractURI("https://monstropoly.io/ticketsContractUri/");
+
+        LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
+        LAUNCHPAD = launchpad;
     }
 
     function baseURI() public view returns (string memory) {
@@ -56,9 +67,27 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
         return _exists(tokenId);
     }
 
-    function boxIdOfToken(uint256 tokenId) public view returns(uint256) {
-        require(_exists(tokenId), "MonstropolyTickets: inexistent");
-        return _idToBox[tokenId];
+    function getLastOwnedTokenIds(address owner, uint256 size, uint256 skip) public view returns(uint256[] memory) {
+        uint256 total = balanceOf(owner);
+        size = total < size ? total : size;
+        uint256[] memory array = new uint256[](size);
+        for(uint256 i = skip; i < size; i++) {
+            array[i] = tokenOfOwnerByIndex(owner, i);
+        }
+        return array;
+    }
+
+    function getMaxLaunchpadSupply() view public returns (uint256) {
+        return LAUNCH_MAX_SUPPLY;
+    }
+
+    function getLaunchpadSupply() view public returns (uint256) {
+        return LAUNCH_SUPPLY;
+    }
+
+    function updateLaunchpadConfig(uint256 launchpadMaxSupply, address launchpad) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
+        LAUNCHPAD = launchpad;
     }
 
     function setBaseURI(string memory newBaseTokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -69,17 +98,32 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
         _setContractURI(contractURI_);
     }
 
-    function mintBatch(address to, uint256 boxId, uint256 amount) public {
+    function mintBatch(address to, uint256 amount) public {
         for (uint256 i = 0; i < amount; i++) {
-            mint(to, boxId);
+            mint(to);
         }
     }
 
-    function mint(address to, uint256 boxId) public onlyRole(MINTER_ROLE) {
+    function mint(address to) public onlyRole(MINTER_ROLE) returns(uint256) {
+        return _mintIncrementingCounter(to);
+    }
+
+    function mintTo(address to, uint size) external onlyLaunchpad {
+        require(to != address(0), "MonstropolyTickets: can't mint to empty address");
+        require(size > 0, "MonstropolyTickets: size must greater than zero");
+        require(LAUNCH_SUPPLY + size <= LAUNCH_MAX_SUPPLY, "MonstropolyTickets: max launchpad supply reached");
+
+        for (uint256 i=1; i <= size; i++) {
+            _mintIncrementingCounter(to);
+            LAUNCH_SUPPLY++;
+        }
+    }
+
+    function _mintIncrementingCounter(address to) internal returns (uint256) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        _idToBox[tokenId] = boxId;
         _safeMint(to, tokenId);
+        return tokenId;
     }
 
     function _authorizeUpgrade(address newImplementation)

@@ -28,11 +28,11 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
     mapping(uint256 => MagicBox) public box;
     mapping(uint256 => uint256) public boxSupply;
+    mapping(address => mapping(uint256 => bool)) private _ticketsToBoxId;
 
     bytes32 public constant DATA_ID = keccak256("DATA");
     bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
     bytes32 public constant FACTORY_ID = keccak256("FACTORY");
-    bytes32 public constant TICKETS_ID = keccak256("TICKETS");
 
     function initialize() public initializer {
         _init();
@@ -56,6 +56,11 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
     function updateBoxSupply(uint256 id, uint256 supply) public onlyRole(DEFAULT_ADMIN_ROLE) {
         boxSupply[id] = supply;
         emit UpdateBoxSupply(id, supply);
+    }
+
+    function updateTicketToBoxId(address ticketAddress, uint256 boxId, bool isValid) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _ticketsToBoxId[ticketAddress][boxId] = isValid;
+        emit UpdateTicketBoxId(ticketAddress, boxId, isValid);
     }
 
     function setMintParams(string[] calldata genetics_, uint8[] calldata rarities_, uint8[] calldata breedUses_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
@@ -90,14 +95,14 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
         _mintNFT(id, account);
     }
 
-    function purchaseWithTicket(uint tokenId) public {
+    function purchaseWithTicket(uint tokenId, address ticketAddress, uint256 boxId) public {
+        require(_ticketsToBoxId[ticketAddress][boxId], "Invalid ticket");
         address account = _msgSender();
-        IMonstropolyTickets tickets = IMonstropolyTickets(IMonstropolyDeployer(config).get(TICKETS_ID));
-        uint id = tickets.boxIdOfToken(tokenId);
+        IMonstropolyTickets tickets = IMonstropolyTickets(ticketAddress);
         require(account == tickets.ownerOf(tokenId));
-        _spendBoxSupply(id);
+        _spendBoxSupply(boxId);
         tickets.burn(tokenId);
-        _mintNFT(id, account);
+        _mintNFT(boxId, account);
     }
 
     function _mintNFT(uint id, address account) internal {
