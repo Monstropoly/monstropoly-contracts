@@ -48,6 +48,10 @@ interface IMonstropolyFactory {
     /// @return URI of the contract
     function contractURI() external view returns (string memory);
 
+    /// @notice Returns owner of tokenId
+    /// @return Address of the owner
+    function ownerOf(uint256 tokenId) external view returns (address);
+
     /// @notice Returns wether or not the tokenId is locked
     /// @param tokenId Unique uint identificator of NFT
     /// @return True for locked false for unlocked

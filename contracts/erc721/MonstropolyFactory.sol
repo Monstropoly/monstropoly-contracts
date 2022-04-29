@@ -36,7 +36,7 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     constructor() {}
 
     function initialize() initializer public {
-        __ERC721_init("Heroes And Weapons", "HAW");
+        __ERC721_init("Monstropoly Monsters", "MPM");
         __ERC721Enumerable_init();
         __ERC721URIStorage_init();
         __Pausable_init();
@@ -170,6 +170,10 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
         override(ERC721BurnableUpgradeable, IMonstropolyFactory)
     {
         super.burn(tokenId);
+    }
+
+    function ownerOf(uint256 tokenId) public view virtual override(ERC721Upgradeable, IMonstropolyFactory) returns (address) {
+        return super.ownerOf(tokenId);
     }
 
     function _burn(uint256 tokenId)
