@@ -215,6 +215,8 @@ module.exports = {
         'IMonstropolyMagicBoxesShop',
         'MonstropolyNFTStaking', 
         'IMonstropolyNFTStaking',
+        'MonstropolyLendingGame', 
+        'IMonstropolyLendingGame',
         'AccessControlProxyPausable', 
         'IAccessControlProxyPausable',
         'UUPSUpgradeableByRole',

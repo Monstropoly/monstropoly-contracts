@@ -1,7 +1,7 @@
 const { ethers } = require('hardhat');
 
-const LENDING_ADDR = '0xe4dB7F48e8c2415b5926aE7B47CA8897aE8F93FC'
-const LEND_ID = 1
+const LENDING_ADDR = '0x60D40BaCaFD4035a6f95dda8Aeb9612C69c25992'
+const TOKEN_ID = 112
 
 async function main() {
     await hre.run('compile');
@@ -9,7 +9,7 @@ async function main() {
     const accounts = await ethers.getSigners()
 
     const lendingContract = await ethers.getContractAt('MonstropolyLendingGame', LENDING_ADDR)
-    const lend = await lendingContract.getLend(LEND_ID)
+    const lend = await lendingContract.getLend(TOKEN_ID)
 
     let value = ethers.utils.parseEther('0')
     if (lend.price.gt(0)) {
@@ -33,7 +33,7 @@ async function main() {
     }
 
     const response = await lendingContract.connect(accounts[1]).takeLend(
-        LEND_ID,
+        TOKEN_ID,
         { value: value }
     )
     await response.wait()

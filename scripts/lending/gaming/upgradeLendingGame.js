@@ -10,11 +10,9 @@ async function main() {
     const deployer = await ethers.getContractAt("MonstropolyDeployer", DEPLOYER_ADDR);
 
     const Factory = await ethers.getContractFactory("MonstropolyLendingGame")
-    const emptyInitializeCalldata = Factory.interface.encodeFunctionData("initialize", []);
-    const response = await deployer.deploy(ethers.utils.id("LENDING_GAME_V2"), Factory.bytecode, emptyInitializeCalldata)
+    const response = await deployer.deploy(ethers.utils.id("LENDING_GAME_V2"), Factory.bytecode, '0x')
     await response.wait()
     const lendingAddress = await deployer.get(ethers.utils.id("LENDING_GAME_V2"))
-    await deployer.grantRole(ethers.utils.id("LOCKER_ROLE"), lendingAddress)
 
     console.log("LendingGame:", lendingAddress)
 

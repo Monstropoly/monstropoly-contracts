@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: Unlicensed
+pragma solidity 0.8.9;
+
 interface IMonstropolyLendingGame {
     struct Lend {
-        uint256 tokenId;
         address lender;
         address borrower;
         uint256 borrowerPercentage;
@@ -8,14 +10,12 @@ interface IMonstropolyLendingGame {
         uint256 duration;
         uint256 price;
         address payToken;
-        bool executed;
     }
 
 	event LendOffer(
-        uint256 indexed tokenId, 
-        uint256 indexed lendId, 
+        uint256 indexed tokenId,
         address indexed lender, 
-        address borrower, 
+        address indexed borrower, 
         uint256 borrowerPercentage, 
         uint256 startDate,
         uint256 duration,
@@ -23,16 +23,16 @@ interface IMonstropolyLendingGame {
         address payToken
     );
 
-    event LendTake(uint256 indexed lendId, address indexed borrower);
-    event LendEnd(uint256 indexed lendId);
+    event LendTake(uint256 indexed tokenId, address indexed borrower);
+    event LendEnd(uint256 indexed tokenId);
 
-    function cancelLend(uint256 lendId) external;
+    function cancelLend(uint256 tokenId) external;
 
-    function claimGamer(uint256 lendId) external;
+    function claimGamer(uint256 tokenId) external;
 
     function getGamer(uint256 tokenId) external view returns (address);
 
-    function getLend(uint256 lendId) external view returns (Lend memory);
+    function getLend(uint256 tokenId) external view returns (Lend memory);
 
     function offerLend(
         uint256 tokenId,
@@ -43,5 +43,5 @@ interface IMonstropolyLendingGame {
         address payToken
     ) external;
 
-    function takeLend(uint256 lendId) external payable;
+    function takeLend(uint256 tokenId) external payable;
 }

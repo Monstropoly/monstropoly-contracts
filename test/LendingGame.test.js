@@ -84,15 +84,13 @@ describe('LendingGame', function () {
                 payToken
             )
 
-            const lend = await myLending.getLend(0)
-            expect(lend.tokenId).to.equal(tokenId)
+            const lend = await myLending.getLend(tokenId)
             expect(lend.lender).to.equal(lender.address)
             expect(lend.borrower).to.equal(ethers.constants.AddressZero)
             expect(lend.borrowerPercentage).to.equal(borrowerPercentage)
             expect(lend.duration).to.equal(duration)
             expect(lend.price).to.equal(price)
             expect(lend.payToken).to.equal(payToken)
-            expect(lend.executed).to.equal(false)
         })
 
         it('can create lend direct offer in MPOLY price not 0', async () => {
@@ -111,15 +109,13 @@ describe('LendingGame', function () {
                 payToken
             )
 
-            const lend = await myLending.getLend(0)
-            expect(lend.tokenId).to.equal(tokenId)
+            const lend = await myLending.getLend(tokenId)
             expect(lend.lender).to.equal(lender.address)
             expect(lend.borrower).to.equal(borrower.address)
             expect(lend.borrowerPercentage).to.equal(borrowerPercentage)
             expect(lend.duration).to.equal(duration)
             expect(lend.price).to.equal(price)
             expect(lend.payToken).to.equal(payToken)
-            expect(lend.executed).to.equal(false)
         })
     })
 
@@ -140,7 +136,7 @@ describe('LendingGame', function () {
                 payToken
             )
 
-            await myLending.connect(borrower).takeLend(0)
+            await myLending.connect(borrower).takeLend(tokenId)
 
             const gamer = await myLending.getGamer(tokenId)
             expect(gamer).to.equal(borrower.address)
@@ -163,7 +159,7 @@ describe('LendingGame', function () {
             )
 
             await myMPOLY.connect(borrower).approve(myLending.address, ethers.constants.MaxUint256)
-            await myLending.connect(borrower).takeLend(0)
+            await myLending.connect(borrower).takeLend(tokenId)
 
             const gamer = await myLending.getGamer(tokenId)
             expect(gamer).to.equal(borrower.address)
@@ -187,10 +183,10 @@ describe('LendingGame', function () {
                 payToken
             )
 
-            await myLending.connect(lender).cancelLend(0)
+            await myLending.connect(lender).cancelLend(tokenId)
 
             await expect(
-                myLending.connect(borrower).takeLend(0)
+                myLending.connect(borrower).takeLend(tokenId)
             ).to.revertedWith(
                 "MonstropolyLendingGame: checkLender or inexistent"
             )
@@ -214,11 +210,11 @@ describe('LendingGame', function () {
                 payToken
             )
 
-            await myLending.connect(borrower).takeLend(0)
+            await myLending.connect(borrower).takeLend(tokenId)
 
-            const lend = await myLending.getLend(0)
+            const lend = await myLending.getLend(tokenId)
             await ethers.provider.send("evm_setNextBlockTimestamp", [parseInt(lend.startDate) + duration + 1])
-            await myLending.claimGamer(0)
+            await myLending.claimGamer(tokenId)
             
             const gamer = await myLending.getGamer(tokenId)
             expect(gamer).to.equal(lender.address)

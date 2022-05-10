@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 
-const LENDING_ADDR = '0xe4dB7F48e8c2415b5926aE7B47CA8897aE8F93FC'
+const LENDING_ADDR = '0x60D40BaCaFD4035a6f95dda8Aeb9612C69c25992'
 const TOKEN_ID = 112
 const DURATION = 86400
 const PRICE = ethers.utils.parseEther('0')

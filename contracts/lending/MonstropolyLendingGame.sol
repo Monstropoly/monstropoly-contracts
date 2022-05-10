@@ -16,8 +16,6 @@ contract MonstropolyLendingGame is IMonstropolyLendingGame, UUPSUpgradeableByRol
     string public override versionRecipient = "2.4.0";
     bytes32 public constant FACTORY_ID = keccak256("FACTORY");
 
-    CountersUpgradeable.Counter private _lendIdCounter;
-
     mapping(uint256 => Lend) private _lends;
     mapping(uint256 => address) private _gamers;
 
@@ -26,8 +24,8 @@ contract MonstropolyLendingGame is IMonstropolyLendingGame, UUPSUpgradeableByRol
         _;
     }
 
-    modifier checkBorrower(uint256 lendId, address borrower) {
-        require(_checkBorrower(lendId, borrower), "MonstropolyLendingGame: checkBorrower");
+    modifier checkBorrower(uint256 tokenId, address borrower) {
+        require(_checkBorrower(tokenId, borrower), "MonstropolyLendingGame: checkBorrower");
         _;
     }
 
@@ -39,8 +37,8 @@ contract MonstropolyLendingGame is IMonstropolyLendingGame, UUPSUpgradeableByRol
         _setTrustedForwarder(_forwarder);
     }
 
-    function getLend(uint256 lendId) public view returns(Lend memory) {
-        return _lends[lendId];
+    function getLend(uint256 tokenId) public view returns(Lend memory) {
+        return _lends[tokenId];
     }
 
     function getGamer(uint256 tokenId) public view returns(address) {
@@ -64,64 +62,62 @@ contract MonstropolyLendingGame is IMonstropolyLendingGame, UUPSUpgradeableByRol
         external 
         checkLender(tokenId, _msgSender()) 
     {
+        require(_lends[tokenId].lender == address(0), "MonstropolyLendingGame: token already offered");
+
         _lockToken(tokenId);
-        uint256 lendId = _lendIdCounter.current();
-        _lendIdCounter.increment();
-        _lends[lendId] = Lend(
-            tokenId,
+        _lends[tokenId] = Lend(
             _msgSender(),
             borrower,
             borrowerPercentage,
-            block.timestamp,
+            0,
             duration,
             price,
-            payToken,
-            false
+            payToken
         );
 
         emit LendOffer(
             tokenId,
-            lendId,
             _msgSender(),
             borrower,
             borrowerPercentage,
-            block.timestamp,
+            0,
             duration,
             price,
             payToken
         );
     }
 
-    function cancelLend(uint256 lendId) external {
-        require(_msgSender() == _lends[lendId].lender, "MonstropolyLendingGame: only lender can cancel");
-        _unlockToken(_lends[lendId].tokenId);
-        delete _lends[lendId];
+    function cancelLend(uint256 tokenId) external {
+        require(_msgSender() == _lends[tokenId].lender, "MonstropolyLendingGame: only lender can cancel");
+        require(_lends[tokenId].startDate == 0, "MonstropolyLendingGame: lend already taken");
+        _unlockToken(tokenId);
+        delete _lends[tokenId];
     }
 
-    function takeLend(uint256 lendId) external payable checkBorrower(lendId, _msgSender()) checkLender(_lends[lendId].tokenId, _lends[lendId].lender) {
-        if (_lends[lendId].price > 0) {
+    function takeLend(uint256 tokenId) external payable checkBorrower(tokenId, _msgSender()) checkLender(tokenId, _lends[tokenId].lender) {
+        if (_lends[tokenId].price > 0) {
             _transferFrom(
-                _lends[lendId].payToken,
-                _lends[lendId].borrower,
-                _lends[lendId].lender,
-                _lends[lendId].price
+                _lends[tokenId].payToken,
+                _lends[tokenId].borrower,
+                _lends[tokenId].lender,
+                _lends[tokenId].price
             );
         }
         
-        _lends[lendId].executed = true;
-        _lends[lendId].borrower = _msgSender();
-        _gamers[_lends[lendId].tokenId] = _msgSender();
+        _lends[tokenId].startDate = block.timestamp;
+        _lends[tokenId].borrower = _msgSender();
+        _gamers[tokenId] = _msgSender();
 
-        emit LendTake(lendId, _msgSender());
+        emit LendTake(tokenId, _msgSender());
     }
 
-    function claimGamer(uint256 lendId) external {
-        require(_checkLendEnd(lendId), "MonstropolyLendingGame: lend not ended");
-        // _gamers[_lends[lendId].tokenId] = address(0);
-        _gamers[_lends[lendId].tokenId] = _lends[lendId].lender; //TBD: check if cheaper address0
-        _unlockToken(_lends[lendId].tokenId);
-        delete _lends[lendId];
-        emit LendEnd(lendId);
+    function claimGamer(uint256 tokenId) external {
+        require(_checkLendEnd(tokenId), "MonstropolyLendingGame: lend not ended");
+        // _gamers[_lends[tokenId].tokenId] = address(0);
+        _gamers[tokenId] = _lends[tokenId].lender; //TBD: check if cheaper address0
+        _unlockToken(tokenId);
+        delete _lends[tokenId];
+        emit LendEnd(tokenId);
     }
 
     function _checkLender(uint256 tokenId, address lender) internal view returns (bool) {
@@ -129,12 +125,12 @@ contract MonstropolyLendingGame is IMonstropolyLendingGame, UUPSUpgradeableByRol
         return lender == factory.ownerOf(tokenId);
     }
 
-    function _checkBorrower(uint256 lendId, address borrower) internal view returns (bool) {
-        return (_lends[lendId].borrower == address(0) || _lends[lendId].borrower == borrower);
+    function _checkBorrower(uint256 tokenId, address borrower) internal view returns (bool) {
+        return (_lends[tokenId].borrower == address(0) || _lends[tokenId].borrower == borrower);
     }
 
-    function _checkLendEnd(uint256 lendId) internal view returns (bool) {
-        return (_lends[lendId].startDate + _lends[lendId].duration) < block.timestamp;
+    function _checkLendEnd(uint256 tokenId) internal view returns (bool) {
+        return (_lends[tokenId].startDate + _lends[tokenId].duration) < block.timestamp;
     }
 
     function _lockToken(uint256 tokenId) internal {
