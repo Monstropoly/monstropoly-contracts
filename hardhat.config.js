@@ -213,6 +213,8 @@ module.exports = {
         'IMonstropolyData',
         'MonstropolyMagicBoxesShop', 
         'IMonstropolyMagicBoxesShop',
+        'MonstropolyNFTStaking', 
+        'IMonstropolyNFTStaking',
         'AccessControlProxyPausable', 
         'IAccessControlProxyPausable',
         'UUPSUpgradeableByRole',
