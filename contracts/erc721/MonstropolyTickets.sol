@@ -33,40 +33,41 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() initializer {}
 
-    function initialize(uint256 launchpadMaxSupply, address launchpad) initializer public {
-        __ERC721_init("Monstropoly Boxes", "MPB");
+    function initialize(string calldata name_, string calldata symbol_, string calldata baseURI_, uint256 launchpadMaxSupply, address launchpad) initializer public {
+        __ERC721_init(name_, symbol_);
         __ERC721Enumerable_init();
         __ERC721Burnable_init();
         __AccessControl_init();
         __UUPSUpgradeable_init();
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(UPGRADER_ROLE, msg.sender);
-
-        _setBaseURI("https://monstropoly.io/tickets/");
-        _setContractURI("https://monstropoly.io/ticketsContractUri/");
+        _setBaseURI(baseURI_);
 
         LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
         LAUNCHPAD = launchpad;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function baseURI() public view returns (string memory) {
         return _baseURI();
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function contractURI() public view returns (string memory) {
         return _contractUri;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function isApproved(address to, uint256 tokenId) public view returns (bool){
         return _isApprovedOrOwner(to, tokenId);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function exists(uint256 tokenId) public view returns (bool) {
         return _exists(tokenId);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function getLastOwnedTokenIds(address owner, uint256 size, uint256 skip) public view returns(uint256[] memory) {
         uint256 total = balanceOf(owner);
         size = total < size ? total : size;
@@ -77,37 +78,45 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
         return array;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function getMaxLaunchpadSupply() view public returns (uint256) {
         return LAUNCH_MAX_SUPPLY;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function getLaunchpadSupply() view public returns (uint256) {
         return LAUNCH_SUPPLY;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function updateLaunchpadConfig(uint256 launchpadMaxSupply, address launchpad) public onlyRole(DEFAULT_ADMIN_ROLE) {
         LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
         LAUNCHPAD = launchpad;
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function setBaseURI(string memory newBaseTokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setBaseURI(newBaseTokenURI);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function setContractURI(string memory contractURI_) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContractURI(contractURI_);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function mintBatch(address to, uint256 amount) public {
         for (uint256 i = 0; i < amount; i++) {
             mint(to);
         }
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function mint(address to) public onlyRole(MINTER_ROLE) returns(uint256) {
         return _mintIncrementingCounter(to);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function mintTo(address to, uint size) external onlyLaunchpad {
         require(to != address(0), "MonstropolyTickets: can't mint to empty address");
         require(size > 0, "MonstropolyTickets: size must greater than zero");
@@ -163,10 +172,12 @@ contract MonstropolyTickets is IMonstropolyTickets, Initializable, ERC721Upgrade
         return super.supportsInterface(interfaceId);
     }
 
+    /// @inheritdoc IMonstropolyTickets
     function ownerOf(uint256 tokenId) public view virtual override(ERC721Upgradeable, IMonstropolyTickets) returns (address) {
         return super.ownerOf(tokenId);
     }
 
+    /// @inheritdoc ERC721BurnableUpgradeable
     function burn(uint256 tokenId) public virtual override(ERC721BurnableUpgradeable, IMonstropolyTickets) {
         super.burn(tokenId);
     }

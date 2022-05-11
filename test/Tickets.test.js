@@ -11,7 +11,7 @@ const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
 const LOCKER_ROLE = ethers.utils.id('LOCKER_ROLE')
 const BASE_URI = 'https://monstropoly.io/tickets/'
 const BASE_URI2 = 'https://ifps.io/ipfs/'
-const CONTRACT_URI = 'https://monstropoly.io/ticketsContractUri/'
+const CONTRACT_URI = ''
 const CONTRACT_URI2 = 'https://ifps.io/ipfs/'
 const IPFS_CID = 'QmVSjEGecMaM6xSA9ZRoT565t7zHgYnabYrKcB9pSka78z'
 const _INTERFACE_ID_ERC721_METADATA = '0x5b5e139f';
@@ -19,6 +19,9 @@ const LAUNCHPAD_MAX_SUPPLY = 10
 const LAUNCHPAD_MAX_BATCH = 3
 const LAUNCHPAD_MAX_PER_ADDRESS = 5
 const LAUNCHPAD_PRICE = ethers.utils.parseEther('1')
+
+const NAME = "NAME"
+const SYMBOL = "SYMBOL"
 
 let myTickets, myLaunchpad
 
@@ -42,9 +45,10 @@ describe('MonstropolyTickets', function () {
         const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
         myLaunchpad = await Launchpad.deploy()
         const implementation = await MonstropolyTickets.deploy()
-        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [NAME, SYMBOL, BASE_URI, LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
         const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
         myTickets = MonstropolyTickets.attach(myProxy.address)
+        await myTickets.grantRole(MINTER_ROLE, owner.address)
     })
 
     describe('mint', () => {

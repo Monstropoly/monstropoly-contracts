@@ -10,8 +10,8 @@ const FACTORY_ADDR = '0xA97b63EEb5a25E650C67838DA62d1D186AFa868A'
 const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
 const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
-const TICKETS_ADDR = '0xd1D3372Ac509890e9a945111CdaCfBfF19ea2190' // BOX_IDs: 0
-// const TICKETS_ADDR = '0x59F4A0C7623335FAC473f1d83D52487440f2E261' // BOX_IDs: 1
+const TICKETS_ADDR = '0x6b8ff7c5594126125A2d0A56D9Cb372890888677' // BOX_IDs: 0
+// const TICKETS_ADDR = '0x134B061985C6C77a6735B72D9fa270E0B01C019A' // BOX_IDs: 1
 // const TICKETS_ADDR = '0x4AaFb46C74D4Cd17D59190dc0B86A0b9e041C6e8' // BOX_IDs: 2, 3, 4, 5
 
 const NFT_ID = 0
@@ -106,9 +106,10 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const GENETICS = ['010100030101010309'] //modify manually !!!
+    const GENETICS = ['010100030101020409'] //modify manually !!!
     const RARITIES = [1] //modify manually !!!
     const BREED_USES = [3] //modify manually !!!
+    const GENERATIONS = [1] //modify manually !!!
 
     // Decode openData to get ASSET and VIP
     const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('purchaseWithTicket', value.data)
@@ -125,7 +126,7 @@ async function main() {
         }
     }
 
-    const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES])
+    const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES, GENERATIONS])
     relayerContract = relayerContract.connect(backend)
     const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature)
     // You can find txHash in response.hash so user can await in frontend (?)

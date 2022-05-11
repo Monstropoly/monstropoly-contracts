@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 /// @title The interface for ERC721 Monstropoly
-/// @notice Creates Monstropoly's NFTs
+/// @notice Creates Monstropoly's Ticket NFTs
 /// @dev Derived from ERC721 to represent assets in Monstropoly
 interface IMonstropolyTickets {
 
@@ -19,6 +19,22 @@ interface IMonstropolyTickets {
   /// @return True if exists, false inexistent
   function exists ( uint256 tokenId ) external view returns ( bool );
 
+  /// @notice Returns paginated array of tokenIds owned by owner
+  /// @dev Use size and skip for pagination
+  /// @param owner Address of the owner
+  /// @param size Length of the desired array
+  /// @param skip Jump those N tokens
+  /// @return Array of tokenIds
+  function getLastOwnedTokenIds(address owner, uint256 size, uint256 skip) external view returns(uint256[] memory);
+
+  /// @notice Returns max amount of tokens mintable by launchpad
+  /// @return LAUNCH_MAX_SUPPLY
+  function getMaxLaunchpadSupply() view external returns (uint256);
+
+  /// @notice Returns current amount of tokens minted by launchpad
+  /// @return LAUNCH_SUPPLY
+  function getLaunchpadSupply() view external returns (uint256);
+
   /// @notice Returns the owner of the NFT
   /// @param tokenId Unique uint identificator of NFT
   /// @return Owner of the NFT
@@ -31,15 +47,26 @@ interface IMonstropolyTickets {
   /// @return True for approved false if not
   function isApproved ( address to, uint256 tokenId ) external view returns ( bool );
 
-  /// @notice Mints NFTs with of some box ID
+  /// @notice Mints NFTs
   /// @param to Receiver of the NFT
   function mint ( address to ) external returns(uint256);
 
-  /// @notice Mints amount of NFTs with of some box ID
+  /// @notice Mints amount of NFTs
   /// @param to Receiver of the NFT
+  /// @param amount Number of NFTs to be minted
   function mintBatch ( address to, uint256 amount ) external;
 
+  /// @notice Mints amount of NFTs
+  /// @dev Reserved for launchpad address
+  /// @param to Receiver of the NFT
+  function mintTo ( address to, uint256 size ) external;
+
   function burn(uint256 tokenId) external;
+
+  /// @notice Sets launchpad configuration
+  /// @param launchpadMaxSupply Max amount of tokens mintable by launchpad
+  /// @param launchpad Address of the launchpad
+  function updateLaunchpadConfig(uint256 launchpadMaxSupply, address launchpad) external;
 
   /// @notice Sets base URI used in tokenURI
   /// @param newBaseTokenURI String with base URI

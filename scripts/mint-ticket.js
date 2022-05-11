@@ -5,8 +5,8 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const TICKETS_ADDR = '0xd1D3372Ac509890e9a945111CdaCfBfF19ea2190'
-// const TICKETS_ADDR = '0x59F4A0C7623335FAC473f1d83D52487440f2E261'
+const TICKETS_ADDR = '0x6b8ff7c5594126125A2d0A56D9Cb372890888677'
+// const TICKETS_ADDR = '0x134B061985C6C77a6735B72D9fa270E0B01C019A'
 // const TICKETS_ADDR = '0x4AaFb46C74D4Cd17D59190dc0B86A0b9e041C6e8'
 
 async function main() {

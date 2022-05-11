@@ -56,9 +56,10 @@ describe('MonstropolyMagicBoxesShop', function () {
 		const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
         const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
         const implementation = await MonstropolyTickets.deploy()
-        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [0, ethers.constants.AddressZero]);
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', ["NAME", "SYMBOL", "URI", 0, ethers.constants.AddressZero]);
         const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
         myTickets = MonstropolyTickets.attach(myProxy.address)
+		await myTickets.grantRole(MINTER_ROLE, owner.address)
 
 		const AggregatorMock = await hre.ethers.getContractFactory('AggregatorMock')
 		myBnbUsdFeed = await AggregatorMock.deploy()
@@ -155,7 +156,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 			myMagicBoxes = myMagicBoxes.connect(person)
 
 			//create meta-tx
-			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
+			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3], [0]])
 			const openData = magicBoxesFactory.interface.encodeFunctionData('purchase', ['0'])
 			const nonce = await myRelayer.getNonce(person.address)
 
@@ -212,7 +213,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 			myMagicBoxes = myMagicBoxes.connect(person)
 
 			//create meta-tx
-			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3]])
+			const setRandomData = magicBoxesFactory.interface.encodeFunctionData('setMintParams', [[GEN], [1], [3], [0]])
 			const openData = magicBoxesFactory.interface.encodeFunctionData('purchaseWithTicket', ['0', myTickets.address, '0'])
 			const nonce = await myRelayer.getNonce(person.address)
 
