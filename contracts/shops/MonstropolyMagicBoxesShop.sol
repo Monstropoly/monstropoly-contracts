@@ -34,6 +34,8 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
     bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
     bytes32 public constant FACTORY_ID = keccak256("FACTORY");
 
+    uint8[] private _generations; //TBD: reorganize, put here bc of upgrades
+
     function initialize() public initializer {
         _init();
     }
@@ -63,14 +65,16 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
         emit UpdateTicketBoxId(ticketAddress, boxId, isValid);
     }
 
-    function setMintParams(string[] calldata genetics_, uint8[] calldata rarities_, uint8[] calldata breedUses_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
+    function setMintParams(string[] calldata genetics_, uint8[] calldata rarities_, uint8[] calldata breedUses_, uint8[] calldata generations_) public /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/ {
         delete _genetics;
         delete _rarities;
         delete _breedUses;
+        delete _generations;
         for(uint i = 0; i < genetics_.length; i++) {
             _genetics.push(genetics_[i]);
             _rarities.push(rarities_[i]);
             _breedUses.push(breedUses_[i]);
+            _generations.push(generations_[i]);
         }
     }
 
@@ -114,12 +118,13 @@ contract MonstropolyMagicBoxesShop is IMonstropolyMagicBoxesShop, UUPSUpgradeabl
 
         for(uint i = 0; i < box[id].amount; i++) {
             if (box[id].specie != 0) _checkSpecie(_genetics[i], box[id].specie);
-            tokenIds_[i] = factory.mint(account, _genetics[i], _rarities[i], _breedUses[i]);
+            tokenIds_[i] = factory.mint(account, _genetics[i], _rarities[i], _breedUses[i], _generations[i]);
         }
 
         delete _genetics;
         delete _rarities;
         delete _breedUses;
+        delete _generations;
     }
 
     function _spendBoxSupply(uint id) internal {

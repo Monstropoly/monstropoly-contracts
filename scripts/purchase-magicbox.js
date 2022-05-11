@@ -112,9 +112,10 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const GENETICS = ['010100030101010302'] //modify manually !!!
+    const GENETICS = ['010100030104040404'] //modify manually !!!
     const RARITIES = [1] //modify manually !!!
     const BREED_USES = [3] //modify manually !!!
+    const GENERATIONS = [1] //modify manually !!!
 
     // Decode openData to get ASSET and VIP
     const decodedOpenData = magicBoxesContract.interface.decodeFunctionData('purchase', value.data)
@@ -131,7 +132,7 @@ async function main() {
         }
     }
 
-    const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES])
+    const wrappData = magicBoxesContract.interface.encodeFunctionData('setMintParams', [GENETICS, RARITIES, BREED_USES, GENERATIONS])
     relayerContract = relayerContract.connect(backend)
     const response = await relayerContract.callAndRelay(wrappData, MAGIC_BOXES_ADDR, value, signature, { value: reqValue })
     // You can find txHash in response.hash so user can await in frontend (?)

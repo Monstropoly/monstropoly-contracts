@@ -31,6 +31,7 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     mapping(bytes32 => bool) private _genetics;
     mapping(uint256 => bool) private _lockedTokens;
     mapping(uint256 => Token) private _tokensById;
+    mapping(uint256 => uint8) private _generationById;//TBD: include in struct
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {}
@@ -69,6 +70,14 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     /// @inheritdoc IMonstropolyFactory
     function exists(uint256 tokenId) public view returns (bool) {
         return _exists(tokenId);
+    }
+
+    function getGenesisMinter(uint256 tokenId) external view returns(address) {
+        return address(0);
+    }
+
+    function getTokenGeneration(uint256 tokenId) external view returns(uint8) {
+        return _generationById[tokenId]; //TBD: include in struct
     }
 
     /// @inheritdoc IMonstropolyFactory
@@ -128,16 +137,19 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function mint(address to_, string calldata genetic_, uint8 rarity_, uint8 breedUses_) public onlyRole(MINTER_ROLE) returns(uint) {
+    function mint(address to_, string calldata genetic_, uint8 rarity_, uint8 breedUses_, uint8 generation_) public onlyRole(MINTER_ROLE) returns(uint) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
 
         bytes32 genId_ = _hashGen(genetic_);
         require(!_genetics[genId_], "MonstropolyFactory: gen already exists");
+        {
         _genetics[genId_] = true;
         Token memory token_ = Token(rarity_, breedUses_, block.timestamp, to_, to_, genetic_);
         _tokensById[tokenId] = token_;
+        _generationById[tokenId] = generation_;
         _safeMint(to_, tokenId);
+        }
 
         emit Mint(address(0), to_, tokenId, rarity_, breedUses_, genetic_);
 

@@ -13,10 +13,11 @@ interface IMonstropolyFactory {
         uint8 breedUses;
         // NFT creation timestamp
         uint bornAt; //TBD: use smaller uint and try to organize to save gas
-        address gamer;
-        address breeder;
+        address gamer; //TBD: remove if unused
+        address breeder; //TBD: remove if unused
         // string defining NFT random and module values
         string genetic;
+        //TBD: include generation
     }
 
     /// @notice Emitted when a NFT is minted
@@ -62,6 +63,8 @@ interface IMonstropolyFactory {
     /// @return True if exists, false inexistent
     function exists(uint256 tokenId) external view returns (bool);
 
+    function getGenesisMinter(uint256 tokenId) external view returns(address);
+
     /// @notice Returns Token struct of tokenId
     /// @param tokenId Unique uint identificator of NFT
     /// @return Token struct
@@ -81,7 +84,7 @@ interface IMonstropolyFactory {
     /// @param to Receiver of the NFT
     /// @param genes String defining NFT random and module values
     /// @return tokenId
-    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses) external returns(uint);
+    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses, uint8 generation) external returns(uint);
 
     /// @notice Sets base URI used in tokenURI
     /// @param newBaseTokenURI String with base URI
