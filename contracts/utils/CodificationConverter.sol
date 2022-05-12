@@ -2,56 +2,69 @@
 pragma solidity 0.8.9;
 
 contract CodificationConverter {
-
     //TBD: consider doing it always to randLength to save external calls to DATA
-    function _padLeft(uint number_, uint requiredLen_) internal view returns(string memory) {
+    function _padLeft(uint256 number_, uint256 requiredLen_)
+        internal
+        view
+        returns (string memory)
+    {
         string memory string_ = _uint2hexstr(number_);
-        uint iter_ = requiredLen_ - bytes(string_).length;
+        uint256 iter_ = requiredLen_ - bytes(string_).length;
 
-        for(uint i = 0; i < iter_; i++) {
+        for (uint256 i = 0; i < iter_; i++) {
             string_ = _append("0", string_);
         }
 
         return string_;
     }
 
-    function _uint2hexstr(uint i) internal pure returns (string memory) {
+    function _uint2hexstr(uint256 i) internal pure returns (string memory) {
         if (i == 0) return "0";
-        uint j = i;
-        uint length;
+        uint256 j = i;
+        uint256 length;
         while (j != 0) {
             length++;
             j = j >> 4;
         }
-        uint mask = 15;
+        uint256 mask = 15;
         bytes memory bstr = new bytes(length);
-        uint k = length;
+        uint256 k = length;
         while (i != 0) {
-            uint curr = (i & mask);
-            bstr[--k] = curr > 9 ?
-                bytes1(uint8(55 + curr)) :
-                bytes1(uint8(48 + curr)); // 55 = 65 - 10
+            uint256 curr = (i & mask);
+            bstr[--k] = curr > 9
+                ? bytes1(uint8(55 + curr))
+                : bytes1(uint8(48 + curr)); // 55 = 65 - 10
             i = i >> 4;
         }
         return string(bstr);
     }
 
-    function _hex2Dec(string memory _hex) internal pure returns(uint) {
+    function _hex2Dec(string memory _hex) internal pure returns (uint256) {
         bytes memory _bytes = bytes(_hex);
-        uint duint = 0;
-        for(uint i=0; i<_bytes.length; i++) {
-            if ((uint8(_bytes[i]) >= 48)&&(uint8(_bytes[i]) <= 57)){                
-                duint += 16**(_bytes.length - 1 - i) * (uint(uint8(_bytes[i])) - 48);
-            } else if ((uint8(_bytes[i]) >= 65)&&(uint8(_bytes[i]) <= 70)) {
-                duint += 16**(_bytes.length - 1 - i) * (uint(uint8(_bytes[i])) - 55);
-            } else if ((uint8(_bytes[i]) >= 97)&&(uint8(_bytes[i]) <= 102)) {
-                duint += 16**(_bytes.length - 1 - i) * (uint(uint8(_bytes[i])) - 87);
+        uint256 duint = 0;
+        for (uint256 i = 0; i < _bytes.length; i++) {
+            if ((uint8(_bytes[i]) >= 48) && (uint8(_bytes[i]) <= 57)) {
+                duint +=
+                    16**(_bytes.length - 1 - i) *
+                    (uint256(uint8(_bytes[i])) - 48);
+            } else if ((uint8(_bytes[i]) >= 65) && (uint8(_bytes[i]) <= 70)) {
+                duint +=
+                    16**(_bytes.length - 1 - i) *
+                    (uint256(uint8(_bytes[i])) - 55);
+            } else if ((uint8(_bytes[i]) >= 97) && (uint8(_bytes[i]) <= 102)) {
+                duint +=
+                    16**(_bytes.length - 1 - i) *
+                    (uint256(uint8(_bytes[i])) - 87);
             }
         }
         return duint;
     }
 
-    function _append(string memory a, string memory b) internal pure returns (string memory) {
+    function _append(string memory a, string memory b)
+        internal
+        pure
+        returns (string memory)
+    {
         return string(abi.encodePacked(a, b));
     }
 
@@ -59,7 +72,7 @@ contract CodificationConverter {
         bytes memory _bytes,
         uint256 _start,
         uint256 _length
-        ) internal pure returns (string memory){
+    ) internal pure returns (string memory) {
         bytes memory tempBytes;
         assembly {
             switch iszero(_length)
@@ -82,13 +95,22 @@ contract CodificationConverter {
                 // because when slicing multiples of 32 bytes (lengthmod == 0)
                 // the following copy loop was copying the origin's length
                 // and then ending prematurely not copying everything it should.
-                let mc := add(add(tempBytes, lengthmod), mul(0x20, iszero(lengthmod)))
+                let mc := add(
+                    add(tempBytes, lengthmod),
+                    mul(0x20, iszero(lengthmod))
+                )
                 let end := add(mc, _length)
 
                 for {
                     // The multiplication in the next line has the same exact purpose
                     // as the one above.
-                    let cc := add(add(add(_bytes, lengthmod), mul(0x20, iszero(lengthmod))), _start)
+                    let cc := add(
+                        add(
+                            add(_bytes, lengthmod),
+                            mul(0x20, iszero(lengthmod))
+                        ),
+                        _start
+                    )
                 } lt(mc, end) {
                     mc := add(mc, 0x20)
                     cc := add(cc, 0x20)

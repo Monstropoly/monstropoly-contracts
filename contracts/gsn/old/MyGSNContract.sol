@@ -7,7 +7,7 @@ contract MyGSNContract is BaseRelayRecipient {
     string public override versionRecipient = "2.4.0";
 
     address public last;
-    uint public salt;
+    uint256 public salt;
 
     // Get the forwarder address for the network
     // you are using from
@@ -19,15 +19,15 @@ contract MyGSNContract is BaseRelayRecipient {
     // VersionRegistry: 0xedD8C4103acAd42F7478021143E29e1B05aD85C6
     // Accept-Everything Paymaster: 0xA6e10aA9B038c9Cddea24D2ae77eC3cE38a0c016
 
-	constructor(address _forwarder) public {
+    constructor(address _forwarder) public {
         _setTrustedForwarder(_forwarder);
-	}
+    }
 
     function set() public {
         last = _msgSender();
     }
 
-    function setSalt(uint _salt) public {
+    function setSalt(uint256 _salt) public {
         salt = _salt;
     }
 }

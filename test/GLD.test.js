@@ -19,7 +19,6 @@ describe('GLD', function () {
     let myDeployer, myGLD, myVault
 
     before(async () => {
-        await hre.run('compile');
         [owner, team, person, bot] = await ethers.getSigners();
     })
     beforeEach(async () => {

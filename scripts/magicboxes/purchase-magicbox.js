@@ -8,7 +8,7 @@ const { ethers } = require('hardhat');
 const MAGIC_BOXES_ADDR = '0xe387Be6718c67BD332a2CFd6b1A3321495B9DA87'
 const FACTORY_ADDR = '0xA97b63EEb5a25E650C67838DA62d1D186AFa868A'
 const MPOLY_ADDR = '0x6a4e41E9114B4E5528bE8C34f95a4F3134c903C7'
-const RELAYER_ADDR = '0x78Fa325d3Ac89EccDBff65cEA1C89463D4FCC31f'
+const RELAYER_ADDR = '0x5727d040A00ce144ec4d585c195C2d9b663210eA'
 const PAYMASTER_ADDR = '0xF6fA4770831dE444266571cC0e8f3600a2f9d492'
 
 const BOX_ID = 3 // 0-random, 1-4vips...
@@ -28,7 +28,7 @@ async function main() {
     const magicBoxesContract = await ethers.getContractAt('MonstropolyMagicBoxesShop', MAGIC_BOXES_ADDR)
     const factoryContract = await ethers.getContractAt('MonstropolyFactory', FACTORY_ADDR)
     const mpolyContract = await ethers.getContractAt('MonstropolyERC20', MPOLY_ADDR)
-    let relayerContract = await ethers.getContractAt('MonstropolyRelayer', RELAYER_ADDR)
+    let relayerContract = await ethers.getContractAt('MonstropolyRelayerFree', RELAYER_ADDR)
 
     /*** USER */
 
@@ -68,7 +68,7 @@ async function main() {
     const nonce = await relayerContract.getNonce(user.address)
 
     const domain = {
-        name: 'MonstropolyRelayer',
+        name: 'MonstropolyRelayerFree',
         version: '1',
         chainId: ethers.provider._network.chainId,
         verifyingContract: RELAYER_ADDR
@@ -112,7 +112,7 @@ async function main() {
         console.log('Valid signature!')
     }
 
-    const GENETICS = ['010100030104040404'] //modify manually !!!
+    const GENETICS = ['010100030104050404'] //modify manually !!!
     const RARITIES = [1] //modify manually !!!
     const BREED_USES = [3] //modify manually !!!
     const GENERATIONS = [1] //modify manually !!!

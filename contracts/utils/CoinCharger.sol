@@ -4,7 +4,12 @@ pragma solidity 0.8.9;
 import "../shared/IMonstropolyERC20.sol";
 
 contract CoinCharger {
-    function _transferFrom(address token_, address from_, address to_, uint amount_) internal {
+    function _transferFrom(
+        address token_,
+        address from_,
+        address to_,
+        uint256 amount_
+    ) internal {
         if (token_ == address(0)) {
             _chargeAndtransferETH(from_, to_, amount_);
         } else {
@@ -12,7 +17,11 @@ contract CoinCharger {
         }
     }
 
-    function _chargeAndtransferETH(address from_, address to_, uint amount_) internal {
+    function _chargeAndtransferETH(
+        address from_,
+        address to_,
+        uint256 amount_
+    ) internal {
         require(msg.value >= amount_, "CoinCharger: wrong msg.value");
         if (to_ != address(this)) _safeTransferETH(to_, amount_);
     }
@@ -29,11 +38,20 @@ contract CoinCharger {
         require(callStatus, "CoinCharger: ETH_TRANSFER_FAILED");
     }
 
-    function _transferFromERC20(address token_, address sender_, address recipient_, uint amount_) internal {
+    function _transferFromERC20(
+        address token_,
+        address sender_,
+        address recipient_,
+        uint256 amount_
+    ) internal {
         IMonstropolyERC20(token_).transferFrom(sender_, recipient_, amount_);
     }
 
-    function _burnFromERC20(address token_, address from_, uint amount_) internal {
+    function _burnFromERC20(
+        address token_,
+        address from_,
+        uint256 amount_
+    ) internal {
         IMonstropolyERC20(token_).burnFrom(from_, amount_);
     }
 }

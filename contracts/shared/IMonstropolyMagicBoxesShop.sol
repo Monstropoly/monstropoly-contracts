@@ -4,7 +4,6 @@ pragma solidity 0.8.9;
 /// @notice Sells Magic Boxes and opens them
 /// @dev Has role to mint NFTs
 interface IMonstropolyMagicBoxesShop {
-
     struct MagicBox {
         // Price of the magic box
         uint256 price;
@@ -22,7 +21,7 @@ interface IMonstropolyMagicBoxesShop {
 
     /// @notice Emitted when a Magic Box is bought
     /// @param account Address of the buyer
-    /// @param id Identificator of the box 
+    /// @param id Identificator of the box
     /// @param amount Amount of boxes bought
     event MagicBoxPurchased(address account, uint256 id, uint256 amount);
 
@@ -32,7 +31,12 @@ interface IMonstropolyMagicBoxesShop {
     /// @param asset Asset to spend
     /// @param vip VIP to spend
     /// @param tokenId Identificator of the minted NFT
-    event MagicBoxOpened(address account, uint256 asset, bool vip, uint256 tokenId);
+    event MagicBoxOpened(
+        address account,
+        uint256 asset,
+        bool vip,
+        uint256 tokenId
+    );
 
     /// @notice Emitted when a Magic Box is updated
     /// @param id Identificator of the Magic Box
@@ -42,7 +46,15 @@ interface IMonstropolyMagicBoxesShop {
     /// @param burnPercentage Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage Percentage of the price to send to treasury (in ether units)
     /// @param specie Specie of the NFT
-    event MagicBoxUpdated(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage, uint256 treasuryPercentage, uint8 specie);
+    event MagicBoxUpdated(
+        uint256 id,
+        uint256 amount,
+        uint256 price,
+        address token,
+        uint256 burnPercentage,
+        uint256 treasuryPercentage,
+        uint8 specie
+    );
 
     /// @notice Emitted when a Magic Box's supply is updated
     /// @param id Identificator of the Magic Box
@@ -72,7 +84,15 @@ interface IMonstropolyMagicBoxesShop {
     /// @param burnPercentage_ Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage_ Percentage of the price to send to treasury (in ether units)
     /// @param specie Specie of the NFT
-    function updateMagicBox(uint256 id, uint256 amount, uint256 price, address token, uint256 burnPercentage_, uint256 treasuryPercentage_, uint8 specie) external;
+    function updateMagicBox(
+        uint256 id,
+        uint256 amount,
+        uint256 price,
+        address token,
+        uint256 burnPercentage_,
+        uint256 treasuryPercentage_,
+        uint8 specie
+    ) external;
 
     /// @notice Purchases Magic Boxes
     /// @param id Identificator of the Magic Box

@@ -12,11 +12,11 @@ interface IMonstropolyLendingGame {
         address payToken;
     }
 
-	event LendOffer(
+    event LendOffer(
         uint256 indexed tokenId,
-        address indexed lender, 
-        address indexed borrower, 
-        uint256 borrowerPercentage, 
+        address indexed lender,
+        address indexed borrower,
+        uint256 borrowerPercentage,
         uint256 startDate,
         uint256 duration,
         uint256 price,

@@ -9,8 +9,10 @@ import "../shared/IAccessControlProxyPausable.sol";
 /// @title The contract for AccessControlProxyPausable
 /// @notice Handles roles and pausability of proxies
 /// @dev Roles and addresses are centralized in Deployer
-contract AccessControlProxyPausable is IAccessControlProxyPausable, PausableUpgradeable {
-
+contract AccessControlProxyPausable is
+    IAccessControlProxyPausable,
+    PausableUpgradeable
+{
     address public config;
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
@@ -18,14 +20,17 @@ contract AccessControlProxyPausable is IAccessControlProxyPausable, PausableUpgr
 
     modifier onlyRole(bytes32 role) {
         address account = msg.sender;
-        require(hasRole(role, account), string(
-                    abi.encodePacked(
-                        "AccessControlProxyPausable: account ",
-                        StringsUpgradeable.toHexString(uint160(account), 20),
-                        " is missing role ",
-                        StringsUpgradeable.toHexString(uint256(role), 32)
-                    )
-                ));
+        require(
+            hasRole(role, account),
+            string(
+                abi.encodePacked(
+                    "AccessControlProxyPausable: account ",
+                    StringsUpgradeable.toHexString(uint160(account), 20),
+                    " is missing role ",
+                    StringsUpgradeable.toHexString(uint256(role), 32)
+                )
+            )
+        );
         _;
     }
 
@@ -35,27 +40,36 @@ contract AccessControlProxyPausable is IAccessControlProxyPausable, PausableUpgr
         return manager.hasRole(role, account);
     }
 
-    function __AccessControlProxyPausable_init(address config_) internal initializer {
+    function __AccessControlProxyPausable_init(address config_)
+        internal
+        initializer
+    {
         __Pausable_init();
         __AccessControlProxyPausable_init_unchained(config_);
     }
 
-    function __AccessControlProxyPausable_init_unchained(address config_) internal initializer {
+    function __AccessControlProxyPausable_init_unchained(address config_)
+        internal
+        initializer
+    {
         config = config_;
     }
 
     /// @inheritdoc IAccessControlProxyPausable
-    function pause() public onlyRole(PAUSER_ROLE){
+    function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /// @inheritdoc IAccessControlProxyPausable
-    function unpause() public onlyRole(PAUSER_ROLE){
+    function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
     /// @inheritdoc IAccessControlProxyPausable
-    function updateManager(address config_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateManager(address config_)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         config = config_;
     }
 }

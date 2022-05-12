@@ -49,10 +49,10 @@ describe('Marketplace', function () {
         myDeployer = await MonstropolyDeployer.deploy()
 
         const dataFactory = await ethers.getContractFactory('MonstropolyData')
-        let calldataData = await dataFactory.interface.encodeFunctionData('initialize', []);
+        let calldataData = dataFactory.interface.encodeFunctionData('initialize', []);
 
         const erc721Factory = await ethers.getContractFactory('MonstropolyFactory')
-        let calldataerc721 = await erc721Factory.interface.encodeFunctionData('initialize', []);
+        let calldataerc721 = erc721Factory.interface.encodeFunctionData('initialize', []);
         const factoryImp = await erc721Factory.deploy()
 
         await myDeployer.deploy(ethers.utils.id("DATA"), dataFactory.bytecode, calldataData)
@@ -74,23 +74,27 @@ describe('Marketplace', function () {
         ]
 
         const MonstropolyMarketplace = await ethers.getContractFactory('MonstropolyMarketplace')
-        myMarketplace = await MonstropolyMarketplace.deploy(
+        let calldataMarketplace = MonstropolyMarketplace.interface.encodeFunctionData('initialize', [
             admin.address,
             treasury.address,
             myWBNB.address,
             MIN_PRICES,
             MAX_PRICES,
             TOKENS
-        )
-        await myMarketplace.deployed()
+        ]);
+        const marketplaceImp = await MonstropolyMarketplace.deploy()
+        await marketplaceImp.deployed()
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("MARKETPLACE"), marketplaceImp.address, calldataMarketplace)
 
-        const [data, factory] = await Promise.all([
+        const [data, factory, marketplace] = await Promise.all([
             myDeployer.get(ethers.utils.id("DATA")),
             myDeployer.get(ethers.utils.id("FACTORY")),
+            myDeployer.get(ethers.utils.id("MARKETPLACE")),
         ])
 
-        myData = await dataFactory.attach(data)
-        myFactory = await erc721Factory.attach(factory)
+        myData = dataFactory.attach(data)
+        myFactory = erc721Factory.attach(factory)
+        myMarketplace = MonstropolyMarketplace.attach(marketplace)
 
         await myDeployer.grantRole(MINTER_ROLE, admin.address)
 
@@ -98,12 +102,12 @@ describe('Marketplace', function () {
         const gen = GEN
         const rarity = 1
         const breedUses = 3
-        const response = await myFactory.mint(owner, gen, rarity, breedUses)
+        const generation = 1
+        const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
         await response.wait()
 
         const response1 = await myMarketplace.addCollection(
             myFactory.address,
-            admin.address,
             ethers.constants.AddressZero,
             TRADING_FEES,
             CREATOR_FEES,
@@ -326,7 +330,6 @@ describe('Marketplace', function () {
             response = await myMPOLY.connect(buyer).approve(myMarketplace.address, ethers.constants.MaxUint256)
             await response.wait()
 
-            console.log(await myMPOLY.allowance(buyer.address, myMarketplace.address))
             response = await myMarketplace.connect(buyer).buyTokenUsingToken(
                 collection,
                 tokenId,

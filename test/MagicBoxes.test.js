@@ -134,20 +134,18 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 		await myMagicBoxes.updateTicketToBoxId(myTickets.address, 0, true)
 		
-		const UniswapMock = await hre.ethers.getContractFactory('UniswapMock')
-		const MonstropolyRelayer = await hre.ethers.getContractFactory('MonstropolyRelayer')
+		const MonstropolyRelayer = await hre.ethers.getContractFactory('MonstropolyRelayerFree')
 
-        myUniswap = await UniswapMock.deploy(myErc20.address)
-		myRelayer = await MonstropolyRelayer.deploy(myUniswap.address)
+		myRelayer = await MonstropolyRelayer.deploy()
 	})
 	describe('MagicBoxes', () => {
 
 		it('can open a box through GSN paying price', async () => {
 			//signerWallet
 			myErc20 = myErc20.connect(person)
-			const paymaster = await myRelayer.paymaster()
+			// const paymaster = await myRelayer.paymaster()
 			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+			// await myErc20.approve(paymaster, ethers.constants.MaxUint256)
 			await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
 
 			//purchase
@@ -162,7 +160,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			//sign
 			const domain = {
-				name: 'MonstropolyRelayer',
+				name: 'MonstropolyRelayerFree',
 				version: '1',
 				chainId: ethers.provider._network.chainId,
 				verifyingContract: myRelayer.address
@@ -203,9 +201,9 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			//signerWallet
 			myErc20 = myErc20.connect(person)
-			const paymaster = await myRelayer.paymaster()
+			// const paymaster = await myRelayer.paymaster()
 			await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-			await myErc20.approve(paymaster, ethers.constants.MaxUint256)
+			// await myErc20.approve(paymaster, ethers.constants.MaxUint256)
 
 			//purchase
 			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
@@ -219,7 +217,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			//sign
 			const domain = {
-				name: 'MonstropolyRelayer',
+				name: 'MonstropolyRelayerFree',
 				version: '1',
 				chainId: ethers.provider._network.chainId,
 				verifyingContract: myRelayer.address

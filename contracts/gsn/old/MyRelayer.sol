@@ -13,16 +13,14 @@ contract MyRelayer {
     }
 
     function relayCall(
-        uint _salt,
+        uint256 _salt,
         address _myContract,
-        uint maxAcceptanceBudget,
+        uint256 maxAcceptanceBudget,
         GsnTypes.RelayRequest calldata relayRequest,
         bytes calldata signature,
         bytes calldata approvalData,
-        uint externalGasLimit
-    )
-    external
-    returns (bool paymasterAccepted, bytes memory returnValue){
+        uint256 externalGasLimit
+    ) external returns (bool paymasterAccepted, bytes memory returnValue) {
         MyGSNContract(_myContract).setSalt(_salt);
         (paymasterAccepted, returnValue) = hub.relayCall(
             maxAcceptanceBudget,

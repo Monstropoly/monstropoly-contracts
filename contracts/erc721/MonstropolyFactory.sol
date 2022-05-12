@@ -17,7 +17,17 @@ import "../shared/IMonstropolyFactory.sol";
 /// @title The contract for ERC721 Monstropoly
 /// @notice Creates Monstropoly's NFTs
 /// @dev Derived from ERC721 to represent assets in Monstropoly
-contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlProxyPausable, ERC721BurnableUpgradeable, UUPSUpgradeableByRole {
+contract MonstropolyFactory is
+    IMonstropolyFactory,
+    Initializable,
+    ERC721Upgradeable,
+    ERC721EnumerableUpgradeable,
+    ERC721URIStorageUpgradeable,
+    PausableUpgradeable,
+    AccessControlProxyPausable,
+    ERC721BurnableUpgradeable,
+    UUPSUpgradeableByRole
+{
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -31,12 +41,12 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     mapping(bytes32 => bool) private _genetics;
     mapping(uint256 => bool) private _lockedTokens;
     mapping(uint256 => Token) private _tokensById;
-    mapping(uint256 => uint8) private _generationById;//TBD: include in struct
+    mapping(uint256 => uint8) private _generationById; //TBD: include in struct
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {}
 
-    function initialize() initializer public {
+    function initialize() public initializer {
         __ERC721_init("Monstropoly Monsters", "MPM");
         __ERC721Enumerable_init();
         __ERC721URIStorage_init();
@@ -58,12 +68,16 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function tokenOfId(uint256 tokenId) public view returns(Token memory) {
+    function tokenOfId(uint256 tokenId) public view returns (Token memory) {
         return _tokensById[tokenId];
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function isApproved(address to, uint256 tokenId) public view returns (bool){
+    function isApproved(address to, uint256 tokenId)
+        public
+        view
+        returns (bool)
+    {
         return _isApprovedOrOwner(to, tokenId);
     }
 
@@ -72,16 +86,16 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
         return _exists(tokenId);
     }
 
-    function getGenesisMinter(uint256 tokenId) external view returns(address) {
+    function getGenesisMinter(uint256 tokenId) external view returns (address) {
         return address(0);
     }
 
-    function getTokenGeneration(uint256 tokenId) external view returns(uint8) {
+    function getTokenGeneration(uint256 tokenId) external view returns (uint8) {
         return _generationById[tokenId]; //TBD: include in struct
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function freeGen(string calldata gen) public view returns(bool) {
+    function freeGen(string calldata gen) public view returns (bool) {
         bytes32 _genId = _hashGen(gen);
         return !_genetics[_genId];
     }
@@ -95,7 +109,11 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     function tokenURI(uint256 tokenId)
         public
         view
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable, IMonstropolyFactory)
+        override(
+            ERC721Upgradeable,
+            ERC721URIStorageUpgradeable,
+            IMonstropolyFactory
+        )
         returns (string memory)
     {
         return super.tokenURI(tokenId);
@@ -107,22 +125,31 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function isLocked(uint256 tokenId) public view returns(bool) {
+    function isLocked(uint256 tokenId) public view returns (bool) {
         return _lockedTokens[tokenId];
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setBaseURI(string memory newBaseTokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setBaseURI(string memory newBaseTokenURI)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setBaseURI(newBaseTokenURI);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setTokenURI(uint256 tokenId, string memory _tokenURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenURI(uint256 tokenId, string memory _tokenURI)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setTokenURI(tokenId, _tokenURI);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setContractURI(string memory contractURI_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setContractURI(string memory contractURI_)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setContractURI(contractURI_);
     }
 
@@ -137,18 +164,31 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function mint(address to_, string calldata genetic_, uint8 rarity_, uint8 breedUses_, uint8 generation_) public onlyRole(MINTER_ROLE) returns(uint) {
+    function mint(
+        address to_,
+        string calldata genetic_,
+        uint8 rarity_,
+        uint8 breedUses_,
+        uint8 generation_
+    ) public onlyRole(MINTER_ROLE) returns (uint256) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
 
         bytes32 genId_ = _hashGen(genetic_);
         require(!_genetics[genId_], "MonstropolyFactory: gen already exists");
         {
-        _genetics[genId_] = true;
-        Token memory token_ = Token(rarity_, breedUses_, block.timestamp, to_, to_, genetic_);
-        _tokensById[tokenId] = token_;
-        _generationById[tokenId] = generation_;
-        _safeMint(to_, tokenId);
+            _genetics[genId_] = true;
+            Token memory token_ = Token(
+                rarity_,
+                breedUses_,
+                block.timestamp,
+                to_,
+                to_,
+                genetic_
+            );
+            _tokensById[tokenId] = token_;
+            _generationById[tokenId] = generation_;
+            _safeMint(to_, tokenId);
         }
 
         emit Mint(address(0), to_, tokenId, rarity_, breedUses_, genetic_);
@@ -169,7 +209,7 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
     }
 
     /// @dev Deconstructs gen and computes its hash
-    function _hashGen(string memory gen) public pure returns(bytes32) {
+    function _hashGen(string memory gen) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(gen));
         // return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
     }
@@ -184,7 +224,13 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
         super.burn(tokenId);
     }
 
-    function ownerOf(uint256 tokenId) public view virtual override(ERC721Upgradeable, IMonstropolyFactory) returns (address) {
+    function ownerOf(uint256 tokenId)
+        public
+        view
+        virtual
+        override(ERC721Upgradeable, IMonstropolyFactory)
+        returns (address)
+    {
         return super.ownerOf(tokenId);
     }
 
@@ -197,12 +243,16 @@ contract MonstropolyFactory is IMonstropolyFactory, Initializable, ERC721Upgrade
         super._burn(tokenId);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    )
         internal
-        whenNotPaused
         override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
+        whenNotPaused
     {
-        require(!_lockedTokens[tokenId] , "MonstropolyFactory: locked token");
+        require(!_lockedTokens[tokenId], "MonstropolyFactory: locked token");
         super._beforeTokenTransfer(from, to, tokenId);
     }
 }

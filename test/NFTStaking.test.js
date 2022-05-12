@@ -9,7 +9,7 @@ let myData, myFactory, myDeployer, myNFTSTaking
 
 let accounts
 
-describe('Marketplace', function () {
+describe('NFTStaking', function () {
     let admin, staker
 
     before(async () => {
@@ -53,7 +53,8 @@ describe('Marketplace', function () {
         const gen = GEN
         const rarity = 1
         const breedUses = 3
-        const response = await myFactory.mint(owner, gen, rarity, breedUses)
+        const generation = 1
+        const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
         await response.wait()
     })
     describe('Stake', () => {

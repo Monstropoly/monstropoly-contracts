@@ -5,29 +5,36 @@ import "../shared/IMonstropolyDistributionVault.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 
 contract MonstropolyDistributor {
-
     address public vault;
 
-    uint public startBlock;
-    uint public endBlock;
-    uint public cliff;
+    uint256 public startBlock;
+    uint256 public endBlock;
+    uint256 public cliff;
 
     uint256 public initial;
     uint256 public perBlock;
 
     uint256 public distributed;
 
-    mapping(address=>uint256) public claimed;
+    mapping(address => uint256) public claimed;
 
     bytes32 public merkleRoot;
     string public uri;
 
     event Claim(address account, uint256 amount);
-    event Init(uint startBlock, uint endBlock, uint cliff, uint256 initial, uint256 perBlock, bytes32 merkleRoot, string uri);
+    event Init(
+        uint256 startBlock,
+        uint256 endBlock,
+        uint256 cliff,
+        uint256 initial,
+        uint256 perBlock,
+        bytes32 merkleRoot,
+        string uri
+    );
 
-    function released() public view returns(uint256) {
+    function released() public view returns (uint256) {
         uint256 amount = 0;
-        uint current = block.number;
+        uint256 current = block.number;
 
         if (current > startBlock) {
             amount += initial;
@@ -40,20 +47,33 @@ contract MonstropolyDistributor {
                 amount += perBlock * (current - startBlock - cliff);
             }
         }
-        
+
         return amount;
     }
 
-    function pending(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) public view returns (uint256) {
+    function pending(
+        uint256 index,
+        address account,
+        uint256 amount,
+        bytes32[] calldata merkleProof
+    ) public view returns (uint256) {
         bytes32 node = keccak256(abi.encodePacked(index, account, amount));
-        require(MerkleProofUpgradeable.verify(merkleProof, merkleRoot, node), "MonstropolyDistributor: invalid proof.");
+        require(
+            MerkleProofUpgradeable.verify(merkleProof, merkleRoot, node),
+            "MonstropolyDistributor: invalid proof."
+        );
 
-        return (released() * amount / 100 ether) - claimed[account];
+        return ((released() * amount) / 100 ether) - claimed[account];
     }
 
-    function claim(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external {
+    function claim(
+        uint256 index,
+        address account,
+        uint256 amount,
+        bytes32[] calldata merkleProof
+    ) external {
         uint256 claiming = pending(index, account, amount, merkleProof);
-        require(claiming > 0,"MonstropolyDistributor: nothing to claim.");
+        require(claiming > 0, "MonstropolyDistributor: nothing to claim.");
         claimed[account] += claiming;
         distributed += claiming;
         IMonstropolyDistributionVault(vault).distribute(account, claiming);
@@ -61,27 +81,48 @@ contract MonstropolyDistributor {
     }
 
     function finish() public {
-        require(msg.sender == vault, "MonstropolyDistributor: only vault can finish it");
+        require(
+            msg.sender == vault,
+            "MonstropolyDistributor: only vault can finish it"
+        );
         initial = released();
         endBlock = startBlock;
         cliff = 0;
     }
 
-    constructor(uint startBlock_, uint endBlock_, uint cliff_, uint256 initial_, uint256 total_, bytes32 merkleRoot_, string memory uri_) {
-
+    constructor(
+        uint256 startBlock_,
+        uint256 endBlock_,
+        uint256 cliff_,
+        uint256 initial_,
+        uint256 total_,
+        bytes32 merkleRoot_,
+        string memory uri_
+    ) {
         vault = msg.sender;
 
-        require(endBlock_ > startBlock_, "MonstropolyDistributor: endBlock must exceed startBlock");
+        require(
+            endBlock_ > startBlock_,
+            "MonstropolyDistributor: endBlock must exceed startBlock"
+        );
         startBlock = startBlock_;
         endBlock = endBlock_;
         cliff = cliff_;
 
         initial = initial_;
-        perBlock = (total_ - initial_) / (endBlock - startBlock - cliff); 
+        perBlock = (total_ - initial_) / (endBlock - startBlock - cliff);
 
         merkleRoot = merkleRoot_;
         uri = uri_;
 
-        emit Init(startBlock, endBlock, cliff, initial, perBlock, merkleRoot, uri);
+        emit Init(
+            startBlock,
+            endBlock,
+            cliff,
+            initial,
+            perBlock,
+            merkleRoot,
+            uri
+        );
     }
 }

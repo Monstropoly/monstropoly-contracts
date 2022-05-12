@@ -15,41 +15,53 @@ contract AggregatorMock is AggregatorV3Interface, Initializable {
         __AggregatorMock_init(decimals, answer);
     }
 
-    function __AggregatorMock_init(uint8 decimals, int256 answer) internal initializer {
+    function __AggregatorMock_init(uint8 decimals, int256 answer)
+        internal
+        initializer
+    {
         _decimals = decimals;
         _answer = answer;
     }
 
-    function decimals() override external view returns (uint8){
+    function decimals() external view override returns (uint8) {
         return _decimals;
     }
 
-    function description() override external view returns (string memory){
-      return _description;
+    function description() external view override returns (string memory) {
+        return _description;
     }
 
-    function version() override external view returns (uint256){
-      return _time;
+    function version() external view override returns (uint256) {
+        return _time;
     }
 
-    function latestRoundData() override external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound){
-      return (
-        _round,
-        _answer,
-        _time,
-        _time,
-        _round
-      );
+    function latestRoundData()
+        external
+        view
+        override
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
+    {
+        return (_round, _answer, _time, _time, _round);
     }
 
-    function getRoundData(uint80 _roundId) override external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound){
-      return (
-        _roundId,
-        _answer,
-        _time,
-        _time,
-        _round
-      );
+    function getRoundData(uint80 _roundId)
+        external
+        view
+        override
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
+    {
+        return (_roundId, _answer, _time, _time, _round);
     }
-
 }

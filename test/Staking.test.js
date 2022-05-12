@@ -45,8 +45,6 @@ const nBlocks = (currentBlock, n) => {
 describe('Staking', function () {
 
   before(async () => {
-    await hre.run('compile')
-
     const accounts = await web3.eth.getAccounts()
     owner = accounts[0]
     person = accounts[1]
@@ -166,10 +164,10 @@ describe('Staking', function () {
       expect(etherToNumber(pending)).to.gt(0)
     })
     it('cannot deposit if not approved', async () => {
-      await expectRevert(myStaking.depositFrom(owner, ONE_ETHER), "ERC20: transfer amount exceeds allowance")
+      await expectRevert(myStaking.depositFrom(owner, ONE_ETHER), "ERC20: insufficient allowance")
     })
     it('cannot deposit if exceeds balance', async () => {
-      await expectRevert(myStaking.depositFrom(owner, ether('1000000000000')), "ERC20: transfer amount exceeds balance")
+      await expectRevert(myStaking.depositFrom(owner, ether('1000000000000')), "ERC20: insufficient allowance")
     })
     it('can deposit twice (not getting rewards)', async () => {
       await myErc20.approve(myStaking.address, TWO_ETHER)

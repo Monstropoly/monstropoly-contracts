@@ -5,7 +5,6 @@ import "@opengsn/paymasters/contracts/TokenPaymaster.sol";
 import "@opengsn/paymasters/contracts/AcceptEverythingPaymaster.sol";
 
 contract MyPaymaster is AcceptEverythingPaymaster {
-
     address public ourTarget;
 
     // Rinkeby Testnet
@@ -14,7 +13,11 @@ contract MyPaymaster is AcceptEverythingPaymaster {
     // VersionRegistry: 0xedD8C4103acAd42F7478021143E29e1B05aD85C6
     // Accept-Everything Paymaster: 0xA6e10aA9B038c9Cddea24D2ae77eC3cE38a0c016
 
-    constructor (address _target, IRelayHub _relayHub, address _forwarder) public {
+    constructor(
+        address _target,
+        IRelayHub _relayHub,
+        address _forwarder
+    ) public {
         ourTarget = _target;
         setRelayHub(_relayHub);
         setTrustedForwarder(_forwarder);
@@ -26,11 +29,15 @@ contract MyPaymaster is AcceptEverythingPaymaster {
         bytes calldata approvalData,
         uint256 maxPossibleGas
     )
-    external
-    override
-    virtual
-    returns (bytes memory context, bool revertOnRecipientRevert) {
-        require(relayRequest.request.to == ourTarget, "MyPaymaster: wrong target");
+        external
+        virtual
+        override
+        returns (bytes memory context, bool revertOnRecipientRevert)
+    {
+        require(
+            relayRequest.request.to == ourTarget,
+            "MyPaymaster: wrong target"
+        );
         (relayRequest, signature, approvalData, maxPossibleGas);
         return ("", false);
     }

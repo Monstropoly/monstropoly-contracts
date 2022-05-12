@@ -39,7 +39,6 @@ describe('POOL', function () {
     const ADD_AMOUNT_WBTC_2 = ADD_AMOUNT_USD_2.mul(ONE_ETHER).div(BTC_USD_RATE)
 
     before(async () => {
-        await hre.run('compile');
         [owner, team, bot] = await ethers.getSigners();
     })
     beforeEach(async () => {

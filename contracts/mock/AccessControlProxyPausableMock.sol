@@ -5,7 +5,10 @@ import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../shared/IMonstropolyDeployer.sol";
 
-contract AccessControlProxyPausableMock is AccessControlProxyPausable, UUPSUpgradeableByRole {
+contract AccessControlProxyPausableMock is
+    AccessControlProxyPausable,
+    UUPSUpgradeableByRole
+{
     string public x;
 
     function initialize() public initializer {
@@ -21,7 +24,7 @@ contract AccessControlProxyPausableMock is AccessControlProxyPausable, UUPSUpgra
         x = "reset";
     }
 
-    function getFromConfig(bytes32 id_) public view returns(address) {
+    function getFromConfig(bytes32 id_) public view returns (address) {
         return IMonstropolyDeployer(config).get(id_);
     }
 }

@@ -7,8 +7,14 @@ import "@opengsn/contracts/src/BaseRelayRecipient.sol";
 import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
 import "../shared/IMonstropolyDeployer.sol";
- 
-contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessControlProxyPausable, UUPSUpgradeableByRole, BaseRelayRecipient {
+
+contract MonstropolyERC20 is
+    ERC20Upgradeable,
+    ERC20SnapshotUpgradeable,
+    AccessControlProxyPausable,
+    UUPSUpgradeableByRole,
+    BaseRelayRecipient
+{
     string public override versionRecipient = "2.4.0";
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant ANTIBOT_ROLE = keccak256("ANTIBOT_ROLE");
@@ -27,18 +33,34 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
         __ERC20_init("MPOLY Token", "MPOLY");
         __ERC20Snapshot_init();
         __AccessControlProxyPausable_init(msg.sender);
-        _mint(IMonstropolyDeployer(config).get(keccak256("DISTRIBUTION_VAULT")), cap);
+        _mint(
+            IMonstropolyDeployer(config).get(keccak256("DISTRIBUTION_VAULT")),
+            cap
+        );
     }
 
-    function _msgSender() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (address) {
+    function _msgSender()
+        internal
+        view
+        override(BaseRelayRecipient, ContextUpgradeable)
+        returns (address)
+    {
         return BaseRelayRecipient._msgSender();
     }
 
-    function _msgData() internal override(BaseRelayRecipient, ContextUpgradeable) view returns (bytes calldata) {
+    function _msgData()
+        internal
+        view
+        override(BaseRelayRecipient, ContextUpgradeable)
+        returns (bytes calldata)
+    {
         return BaseRelayRecipient._msgData();
     }
 
-    function setTrustedForwarder(address _forwarder) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTrustedForwarder(address _forwarder)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setTrustedForwarder(_forwarder);
     }
 
@@ -52,7 +74,10 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
     }
 
     function _mint(address account, uint256 amount) internal override {
-        require(ERC20Upgradeable.totalSupply() + amount + burned <= cap, "MonstropolyERC20: cap exceeded");
+        require(
+            ERC20Upgradeable.totalSupply() + amount + burned <= cap,
+            "MonstropolyERC20: cap exceeded"
+        );
         super._mint(account, amount);
     }
 
@@ -62,7 +87,11 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
     }
 
     function burnFrom(address account, uint256 amount) public {
-        require(_msgSender() == account || allowance(account, _msgSender()) >= amount, "MonstropolyERC20: amount exceeds allowance");
+        require(
+            _msgSender() == account ||
+                allowance(account, _msgSender()) >= amount,
+            "MonstropolyERC20: amount exceeds allowance"
+        );
         _burn(account, amount);
     }
 
@@ -75,42 +104,61 @@ contract MonstropolyERC20 is ERC20Upgradeable, ERC20SnapshotUpgradeable, AccessC
     }
 
     function startAntiBot() external onlyRole(ANTIBOT_ROLE) {
-        require(!_isAntiBotInitialized, "MonstropolyERC20: antibot not startable anymore");
+        require(
+            !_isAntiBotInitialized,
+            "MonstropolyERC20: antibot not startable anymore"
+        );
         _isAntiBotInitialized = true;
         _isAntibot = true;
     }
 
-    function setAntiBotMaxBalance(uint256 _max) external onlyRole(ANTIBOT_ROLE) {
+    function setAntiBotMaxBalance(uint256 _max)
+        external
+        onlyRole(ANTIBOT_ROLE)
+    {
         require(_max >= 10000 ether, "MonstropolyERC20: max must be >= 10k");
         _maxBalanceWhenAntiBot = _max;
     }
 
-    function whitelist(address[] calldata _list) external onlyRole(ANTIBOT_ROLE) {
-        for(uint256 i; i <_list.length; i++) {
+    function whitelist(address[] calldata _list)
+        external
+        onlyRole(ANTIBOT_ROLE)
+    {
+        for (uint256 i; i < _list.length; i++) {
             whitelisted[_list[i]] = true;
         }
     }
 
-    function unwhitelist(address[] calldata _list) external onlyRole(ANTIBOT_ROLE) {
-        for(uint256 i; i <_list.length; i++) {
+    function unwhitelist(address[] calldata _list)
+        external
+        onlyRole(ANTIBOT_ROLE)
+    {
+        for (uint256 i; i < _list.length; i++) {
             whitelisted[_list[i]] = false;
         }
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount)
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    )
         internal
-        whenNotPaused
         override(ERC20Upgradeable, ERC20SnapshotUpgradeable)
+        whenNotPaused
     {
         _antiBotMaxBalance(to, amount);
         super._beforeTokenTransfer(from, to, amount);
     }
 
     function _antiBotMaxBalance(address _addr, uint256 _amount) internal view {
-        if((_isAntibot) && (!whitelisted[_addr])){
+        if ((_isAntibot) && (!whitelisted[_addr])) {
             uint256 _balance = balanceOf(_addr);
             uint256 _nextBalance = _balance + _amount;
-            require(_nextBalance <= _maxBalanceWhenAntiBot, "MonstropolyERC20: Maxbalance for antibot");
+            require(
+                _nextBalance <= _maxBalanceWhenAntiBot,
+                "MonstropolyERC20: Maxbalance for antibot"
+            );
         }
     }
 }

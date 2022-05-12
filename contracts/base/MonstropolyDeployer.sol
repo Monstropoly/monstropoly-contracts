@@ -10,19 +10,18 @@ import "../shared/IMonstropolyDeployer.sol";
 /// @notice Deploys contracts and handle addresses and roles
 /// @dev Contracts are deployed and handled using UUPS OZ proxy pattern
 contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
-    
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     /// @inheritdoc IMonstropolyDeployer
-    mapping(bytes32=>address) public get;
+    mapping(bytes32 => address) public get;
 
     /// @inheritdoc IMonstropolyDeployer
-    mapping(address=>bytes32) public name;
+    mapping(address => bytes32) public name;
 
     /// @inheritdoc IMonstropolyDeployer
-    mapping(bytes32=>bool) public locked;
+    mapping(bytes32 => bool) public locked;
 
-    constructor () initializer {
+    constructor() initializer {
         __AccessControl_init();
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(DEFAULT_ADMIN_ROLE, address(this));
@@ -35,12 +34,19 @@ contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
     }
 
     /// @inheritdoc IMonstropolyDeployer
-    function setId(bytes32 id, address addr) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setId(bytes32 id, address addr)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         _setId(id, addr);
     }
 
     /// @inheritdoc IMonstropolyDeployer
-    function deployProxyWithImplementation(bytes32 id, address implementation, bytes memory initializeCalldata) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function deployProxyWithImplementation(
+        bytes32 id,
+        address implementation,
+        bytes memory initializeCalldata
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(!locked[id], "MonstropolyDeployer: id locked");
         _deployProxy(id, implementation, initializeCalldata);
 
@@ -48,7 +54,11 @@ contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
     }
 
     /// @inheritdoc IMonstropolyDeployer
-    function deploy(bytes32 id, bytes memory bytecode, bytes memory initializeCalldata) public onlyRole(DEFAULT_ADMIN_ROLE) returns(address implementation){
+    function deploy(
+        bytes32 id,
+        bytes memory bytecode,
+        bytes memory initializeCalldata
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) returns (address implementation) {
         bool upgrade;
         assembly {
             implementation := create(0, add(bytecode, 32), mload(bytecode))
@@ -63,7 +73,7 @@ contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
             } else {
                 proxy.upgradeTo(implementation);
             }
-            
+
             upgrade = true;
         } else {
             _deployProxy(id, implementation, initializeCalldata);
@@ -73,7 +83,11 @@ contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
     }
 
     /// @dev Deploys the ERC1967Proxy pointing to an implementation and sets ID
-    function _deployProxy(bytes32 id, address implementation, bytes memory initializeCalldata) private {
+    function _deployProxy(
+        bytes32 id,
+        address implementation,
+        bytes memory initializeCalldata
+    ) private {
         ERC1967Proxy proxy = new ERC1967Proxy(
             implementation,
             initializeCalldata
@@ -89,4 +103,4 @@ contract MonstropolyDeployer is IMonstropolyDeployer, AccessControlUpgradeable {
 
         emit NewId(id, addr);
     }
-} 
+}

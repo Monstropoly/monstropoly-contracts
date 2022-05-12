@@ -1,1 +1,3 @@
-node_modules/
+AggregatorMock.sol
+UniswapRouter.sol
+PancakeswapNFTMarketplace.sol

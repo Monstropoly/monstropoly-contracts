@@ -1,6 +1,6 @@
 /**
  *Submitted for verification at BscScan.com on 2021-09-30
-*/
+ */
 
 // File: @openzeppelin/contracts/utils/Context.sol
 
@@ -30,8 +30,6 @@ abstract contract Context {
 
 // File: @openzeppelin/contracts/access/Ownable.sol
 
-
-
 pragma solidity ^0.8.0;
 
 /**
@@ -49,7 +47,10 @@ pragma solidity ^0.8.0;
 abstract contract Ownable is Context {
     address private _owner;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
@@ -89,7 +90,10 @@ abstract contract Ownable is Context {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        require(
+            newOwner != address(0),
+            "Ownable: new owner is the zero address"
+        );
         _setOwner(newOwner);
     }
 
@@ -101,8 +105,6 @@ abstract contract Ownable is Context {
 }
 
 // File: @openzeppelin/contracts/security/ReentrancyGuard.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -166,8 +168,6 @@ abstract contract ReentrancyGuard {
 }
 
 // File: @openzeppelin/contracts/utils/structs/EnumerableSet.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -274,7 +274,11 @@ library EnumerableSet {
     /**
      * @dev Returns true if the value is in the set. O(1).
      */
-    function _contains(Set storage set, bytes32 value) private view returns (bool) {
+    function _contains(Set storage set, bytes32 value)
+        private
+        view
+        returns (bool)
+    {
         return set._indexes[value] != 0;
     }
 
@@ -295,7 +299,11 @@ library EnumerableSet {
      *
      * - `index` must be strictly less than {length}.
      */
-    function _at(Set storage set, uint256 index) private view returns (bytes32) {
+    function _at(Set storage set, uint256 index)
+        private
+        view
+        returns (bytes32)
+    {
         return set._values[index];
     }
 
@@ -311,7 +319,10 @@ library EnumerableSet {
      * Returns true if the value was added to the set, that is if it was not
      * already present.
      */
-    function add(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+    function add(Bytes32Set storage set, bytes32 value)
+        internal
+        returns (bool)
+    {
         return _add(set._inner, value);
     }
 
@@ -321,14 +332,21 @@ library EnumerableSet {
      * Returns true if the value was removed from the set, that is if it was
      * present.
      */
-    function remove(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+    function remove(Bytes32Set storage set, bytes32 value)
+        internal
+        returns (bool)
+    {
         return _remove(set._inner, value);
     }
 
     /**
      * @dev Returns true if the value is in the set. O(1).
      */
-    function contains(Bytes32Set storage set, bytes32 value) internal view returns (bool) {
+    function contains(Bytes32Set storage set, bytes32 value)
+        internal
+        view
+        returns (bool)
+    {
         return _contains(set._inner, value);
     }
 
@@ -349,7 +367,11 @@ library EnumerableSet {
      *
      * - `index` must be strictly less than {length}.
      */
-    function at(Bytes32Set storage set, uint256 index) internal view returns (bytes32) {
+    function at(Bytes32Set storage set, uint256 index)
+        internal
+        view
+        returns (bytes32)
+    {
         return _at(set._inner, index);
     }
 
@@ -365,7 +387,10 @@ library EnumerableSet {
      * Returns true if the value was added to the set, that is if it was not
      * already present.
      */
-    function add(AddressSet storage set, address value) internal returns (bool) {
+    function add(AddressSet storage set, address value)
+        internal
+        returns (bool)
+    {
         return _add(set._inner, bytes32(uint256(uint160(value))));
     }
 
@@ -375,14 +400,21 @@ library EnumerableSet {
      * Returns true if the value was removed from the set, that is if it was
      * present.
      */
-    function remove(AddressSet storage set, address value) internal returns (bool) {
+    function remove(AddressSet storage set, address value)
+        internal
+        returns (bool)
+    {
         return _remove(set._inner, bytes32(uint256(uint160(value))));
     }
 
     /**
      * @dev Returns true if the value is in the set. O(1).
      */
-    function contains(AddressSet storage set, address value) internal view returns (bool) {
+    function contains(AddressSet storage set, address value)
+        internal
+        view
+        returns (bool)
+    {
         return _contains(set._inner, bytes32(uint256(uint160(value))));
     }
 
@@ -403,7 +435,11 @@ library EnumerableSet {
      *
      * - `index` must be strictly less than {length}.
      */
-    function at(AddressSet storage set, uint256 index) internal view returns (address) {
+    function at(AddressSet storage set, uint256 index)
+        internal
+        view
+        returns (address)
+    {
         return address(uint160(uint256(_at(set._inner, index))));
     }
 
@@ -429,14 +465,21 @@ library EnumerableSet {
      * Returns true if the value was removed from the set, that is if it was
      * present.
      */
-    function remove(UintSet storage set, uint256 value) internal returns (bool) {
+    function remove(UintSet storage set, uint256 value)
+        internal
+        returns (bool)
+    {
         return _remove(set._inner, bytes32(value));
     }
 
     /**
      * @dev Returns true if the value is in the set. O(1).
      */
-    function contains(UintSet storage set, uint256 value) internal view returns (bool) {
+    function contains(UintSet storage set, uint256 value)
+        internal
+        view
+        returns (bool)
+    {
         return _contains(set._inner, bytes32(value));
     }
 
@@ -457,14 +500,16 @@ library EnumerableSet {
      *
      * - `index` must be strictly less than {length}.
      */
-    function at(UintSet storage set, uint256 index) internal view returns (uint256) {
+    function at(UintSet storage set, uint256 index)
+        internal
+        view
+        returns (uint256)
+    {
         return uint256(_at(set._inner, index));
     }
 }
 
 // File: @openzeppelin/contracts/token/ERC20/IERC20.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -489,7 +534,9 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -498,7 +545,10 @@ interface IERC20 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
@@ -543,12 +593,14 @@ interface IERC20 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 // File: @openzeppelin/contracts/utils/Address.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -602,10 +654,16 @@ library Address {
      * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
      */
     function sendValue(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, "Address: insufficient balance");
+        require(
+            address(this).balance >= amount,
+            "Address: insufficient balance"
+        );
 
         (bool success, ) = recipient.call{value: amount}("");
-        require(success, "Address: unable to send value, recipient may have reverted");
+        require(
+            success,
+            "Address: unable to send value, recipient may have reverted"
+        );
     }
 
     /**
@@ -626,7 +684,10 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+    function functionCall(address target, bytes memory data)
+        internal
+        returns (bytes memory)
+    {
         return functionCall(target, data, "Address: low-level call failed");
     }
 
@@ -660,7 +721,13 @@ library Address {
         bytes memory data,
         uint256 value
     ) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+        return
+            functionCallWithValue(
+                target,
+                data,
+                value,
+                "Address: low-level call with value failed"
+            );
     }
 
     /**
@@ -675,10 +742,15 @@ library Address {
         uint256 value,
         string memory errorMessage
     ) internal returns (bytes memory) {
-        require(address(this).balance >= value, "Address: insufficient balance for call");
+        require(
+            address(this).balance >= value,
+            "Address: insufficient balance for call"
+        );
         require(isContract(target), "Address: call to non-contract");
 
-        (bool success, bytes memory returndata) = target.call{value: value}(data);
+        (bool success, bytes memory returndata) = target.call{value: value}(
+            data
+        );
         return _verifyCallResult(success, returndata, errorMessage);
     }
 
@@ -688,8 +760,17 @@ library Address {
      *
      * _Available since v3.3._
      */
-    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
-        return functionStaticCall(target, data, "Address: low-level static call failed");
+    function functionStaticCall(address target, bytes memory data)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return
+            functionStaticCall(
+                target,
+                data,
+                "Address: low-level static call failed"
+            );
     }
 
     /**
@@ -715,8 +796,16 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
+    function functionDelegateCall(address target, bytes memory data)
+        internal
+        returns (bytes memory)
+    {
+        return
+            functionDelegateCall(
+                target,
+                data,
+                "Address: low-level delegate call failed"
+            );
     }
 
     /**
@@ -761,8 +850,6 @@ library Address {
 
 // File: @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
-
-
 pragma solidity ^0.8.0;
 
 /**
@@ -782,7 +869,10 @@ library SafeERC20 {
         address to,
         uint256 value
     ) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.transfer.selector, to, value)
+        );
     }
 
     function safeTransferFrom(
@@ -791,7 +881,10 @@ library SafeERC20 {
         address to,
         uint256 value
     ) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.transferFrom.selector, from, to, value)
+        );
     }
 
     /**
@@ -813,7 +906,10 @@ library SafeERC20 {
             (value == 0) || (token.allowance(address(this), spender) == 0),
             "SafeERC20: approve from non-zero to non-zero allowance"
         );
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.approve.selector, spender, value)
+        );
     }
 
     function safeIncreaseAllowance(
@@ -822,7 +918,14 @@ library SafeERC20 {
         uint256 value
     ) internal {
         uint256 newAllowance = token.allowance(address(this), spender) + value;
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(
+                token.approve.selector,
+                spender,
+                newAllowance
+            )
+        );
     }
 
     function safeDecreaseAllowance(
@@ -832,9 +935,19 @@ library SafeERC20 {
     ) internal {
         unchecked {
             uint256 oldAllowance = token.allowance(address(this), spender);
-            require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
+            require(
+                oldAllowance >= value,
+                "SafeERC20: decreased allowance below zero"
+            );
             uint256 newAllowance = oldAllowance - value;
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(
+                    token.approve.selector,
+                    spender,
+                    newAllowance
+                )
+            );
         }
     }
 
@@ -849,17 +962,21 @@ library SafeERC20 {
         // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
         // the target address contains contract code and also asserts for success in the low-level call.
 
-        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        bytes memory returndata = address(token).functionCall(
+            data,
+            "SafeERC20: low-level call failed"
+        );
         if (returndata.length > 0) {
             // Return data is optional
-            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+            require(
+                abi.decode(returndata, (bool)),
+                "SafeERC20: ERC20 operation did not succeed"
+            );
         }
     }
 }
 
 // File: @openzeppelin/contracts/utils/introspection/IERC165.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -886,8 +1003,6 @@ interface IERC165 {
 
 // File: @openzeppelin/contracts/token/ERC721/IERC721.sol
 
-
-
 pragma solidity ^0.8.0;
 
 /**
@@ -897,17 +1012,29 @@ interface IERC721 is IERC165 {
     /**
      * @dev Emitted when `tokenId` token is transferred from `from` to `to`.
      */
-    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Transfer(
+        address indexed from,
+        address indexed to,
+        uint256 indexed tokenId
+    );
 
     /**
      * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.
      */
-    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event Approval(
+        address indexed owner,
+        address indexed approved,
+        uint256 indexed tokenId
+    );
 
     /**
      * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
      */
-    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    event ApprovalForAll(
+        address indexed owner,
+        address indexed operator,
+        bool approved
+    );
 
     /**
      * @dev Returns the number of tokens in ``owner``'s account.
@@ -985,7 +1112,10 @@ interface IERC721 is IERC165 {
      *
      * - `tokenId` must exist.
      */
-    function getApproved(uint256 tokenId) external view returns (address operator);
+    function getApproved(uint256 tokenId)
+        external
+        view
+        returns (address operator);
 
     /**
      * @dev Approve or remove `operator` as an operator for the caller.
@@ -1004,7 +1134,10 @@ interface IERC721 is IERC165 {
      *
      * See {setApprovalForAll}
      */
-    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function isApprovedForAll(address owner, address operator)
+        external
+        view
+        returns (bool);
 
     /**
      * @dev Safely transfers `tokenId` token from `from` to `to`.
@@ -1028,8 +1161,6 @@ interface IERC721 is IERC165 {
 }
 
 // File: @openzeppelin/contracts/token/ERC721/IERC721Receiver.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -1057,8 +1188,6 @@ interface IERC721Receiver {
 }
 
 // File: @openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol
-
-
 
 pragma solidity ^0.8.0;
 
@@ -1098,7 +1227,6 @@ interface IWETH {
 
 // File: contracts/interfaces/ICollectionWhitelistChecker.sol
 
-
 pragma solidity ^0.8.0;
 
 interface ICollectionWhitelistChecker {
@@ -1106,7 +1234,6 @@ interface ICollectionWhitelistChecker {
 }
 
 // File: contracts/ERC721NFTMarketV1.sol
-
 
 pragma solidity ^0.8.0;
 pragma abicoder v2;
@@ -1140,7 +1267,8 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
     mapping(address => mapping(uint256 => Ask)) private _askDetails; // Ask details (price + seller address) for a given collection and a tokenId
     mapping(address => EnumerableSet.UintSet) private _askTokenIds; // Set of tokenIds for a collection
     mapping(address => Collection) private _collections; // Details about the collections
-    mapping(address => mapping(address => EnumerableSet.UintSet)) private _tokenIdsOfSellerForCollection;
+    mapping(address => mapping(address => EnumerableSet.UintSet))
+        private _tokenIdsOfSellerForCollection;
 
     struct Ask {
         address seller; // address of the seller
@@ -1156,13 +1284,27 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
     }
 
     // Ask order is cancelled
-    event AskCancel(address indexed collection, address indexed seller, uint256 indexed tokenId);
+    event AskCancel(
+        address indexed collection,
+        address indexed seller,
+        uint256 indexed tokenId
+    );
 
     // Ask order is created
-    event AskNew(address indexed collection, address indexed seller, uint256 indexed tokenId, uint256 askPrice);
+    event AskNew(
+        address indexed collection,
+        address indexed seller,
+        uint256 indexed tokenId,
+        uint256 askPrice
+    );
 
     // Ask order is updated
-    event AskUpdate(address indexed collection, address indexed seller, uint256 indexed tokenId, uint256 askPrice);
+    event AskUpdate(
+        address indexed collection,
+        address indexed seller,
+        uint256 indexed tokenId,
+        uint256 askPrice
+    );
 
     // Collection is closed for trading and new listings
     event CollectionClose(address indexed collection);
@@ -1186,13 +1328,22 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
     );
 
     // Admin and Treasury Addresses are updated
-    event NewAdminAndTreasuryAddresses(address indexed admin, address indexed treasury);
+    event NewAdminAndTreasuryAddresses(
+        address indexed admin,
+        address indexed treasury
+    );
 
     // Minimum/maximum ask prices are updated
-    event NewMinimumAndMaximumAskPrices(uint256 minimumAskPrice, uint256 maximumAskPrice);
+    event NewMinimumAndMaximumAskPrices(
+        uint256 minimumAskPrice,
+        uint256 maximumAskPrice
+    );
 
     // Recover NFT tokens sent by accident
-    event NonFungibleTokenRecovery(address indexed token, uint256 indexed tokenId);
+    event NonFungibleTokenRecovery(
+        address indexed token,
+        uint256 indexed tokenId
+    );
 
     // Pending revenue is claimed
     event RevenueClaim(address indexed claimer, uint256 amount);
@@ -1232,11 +1383,26 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _minimumAskPrice,
         uint256 _maximumAskPrice
     ) {
-        require(_adminAddress != address(0), "Operations: Admin address cannot be zero");
-        require(_treasuryAddress != address(0), "Operations: Treasury address cannot be zero");
-        require(_WBNBAddress != address(0), "Operations: WBNB address cannot be zero");
-        require(_minimumAskPrice > 0, "Operations: _minimumAskPrice must be > 0");
-        require(_minimumAskPrice < _maximumAskPrice, "Operations: _minimumAskPrice < _maximumAskPrice");
+        require(
+            _adminAddress != address(0),
+            "Operations: Admin address cannot be zero"
+        );
+        require(
+            _treasuryAddress != address(0),
+            "Operations: Treasury address cannot be zero"
+        );
+        require(
+            _WBNBAddress != address(0),
+            "Operations: WBNB address cannot be zero"
+        );
+        require(
+            _minimumAskPrice > 0,
+            "Operations: _minimumAskPrice must be > 0"
+        );
+        require(
+            _minimumAskPrice < _maximumAskPrice,
+            "Operations: _minimumAskPrice < _maximumAskPrice"
+        );
 
         adminAddress = _adminAddress;
         treasuryAddress = _treasuryAddress;
@@ -1252,7 +1418,11 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _collection: contract address of the NFT
      * @param _tokenId: tokenId of the NFT purchased
      */
-    function buyTokenUsingBNB(address _collection, uint256 _tokenId) external payable nonReentrant {
+    function buyTokenUsingBNB(address _collection, uint256 _tokenId)
+        external
+        payable
+        nonReentrant
+    {
         // Wrap BNB
         IWETH(WBNB).deposit{value: msg.value}();
 
@@ -1270,7 +1440,11 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _tokenId,
         uint256 _price
     ) external nonReentrant {
-        IERC20(WBNB).safeTransferFrom(address(msg.sender), address(this), _price);
+        IERC20(WBNB).safeTransferFrom(
+            address(msg.sender),
+            address(this),
+            _price
+        );
 
         _buyToken(_collection, _tokenId, _price, false);
     }
@@ -1280,17 +1454,31 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _collection: contract address of the NFT
      * @param _tokenId: tokenId of the NFT
      */
-    function cancelAskOrder(address _collection, uint256 _tokenId) external nonReentrant {
+    function cancelAskOrder(address _collection, uint256 _tokenId)
+        external
+        nonReentrant
+    {
         // Verify the sender has listed it
-        require(_tokenIdsOfSellerForCollection[msg.sender][_collection].contains(_tokenId), "Order: Token not listed");
+        require(
+            _tokenIdsOfSellerForCollection[msg.sender][_collection].contains(
+                _tokenId
+            ),
+            "Order: Token not listed"
+        );
 
         // Adjust the information
-        _tokenIdsOfSellerForCollection[msg.sender][_collection].remove(_tokenId);
+        _tokenIdsOfSellerForCollection[msg.sender][_collection].remove(
+            _tokenId
+        );
         delete _askDetails[_collection][_tokenId];
         _askTokenIds[_collection].remove(_tokenId);
 
         // Transfer the NFT back to the user
-        IERC721(_collection).transferFrom(address(this), address(msg.sender), _tokenId);
+        IERC721(_collection).transferFrom(
+            address(this),
+            address(msg.sender),
+            _tokenId
+        );
 
         // Emit event
         emit AskCancel(_collection, msg.sender, _tokenId);
@@ -1321,20 +1509,36 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _askPrice
     ) external nonReentrant {
         // Verify price is not too low/high
-        require(_askPrice >= minimumAskPrice && _askPrice <= maximumAskPrice, "Order: Price not within range");
+        require(
+            _askPrice >= minimumAskPrice && _askPrice <= maximumAskPrice,
+            "Order: Price not within range"
+        );
 
         // Verify collection is accepted
-        require(_collections[_collection].status == CollectionStatus.Open, "Collection: Not for listing");
+        require(
+            _collections[_collection].status == CollectionStatus.Open,
+            "Collection: Not for listing"
+        );
 
         // Verify token has restriction
-        require(_canTokenBeListed(_collection, _tokenId), "Order: tokenId not eligible");
+        require(
+            _canTokenBeListed(_collection, _tokenId),
+            "Order: tokenId not eligible"
+        );
 
         // Transfer NFT to this contract
-        IERC721(_collection).safeTransferFrom(address(msg.sender), address(this), _tokenId);
+        IERC721(_collection).safeTransferFrom(
+            address(msg.sender),
+            address(this),
+            _tokenId
+        );
 
         // Adjust the information
         _tokenIdsOfSellerForCollection[msg.sender][_collection].add(_tokenId);
-        _askDetails[_collection][_tokenId] = Ask({seller: msg.sender, price: _askPrice});
+        _askDetails[_collection][_tokenId] = Ask({
+            seller: msg.sender,
+            price: _askPrice
+        });
 
         // Add tokenId to the askTokenIds set
         _askTokenIds[_collection].add(_tokenId);
@@ -1355,13 +1559,24 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _newPrice
     ) external nonReentrant {
         // Verify new price is not too low/high
-        require(_newPrice >= minimumAskPrice && _newPrice <= maximumAskPrice, "Order: Price not within range");
+        require(
+            _newPrice >= minimumAskPrice && _newPrice <= maximumAskPrice,
+            "Order: Price not within range"
+        );
 
         // Verify collection is accepted
-        require(_collections[_collection].status == CollectionStatus.Open, "Collection: Not for listing");
+        require(
+            _collections[_collection].status == CollectionStatus.Open,
+            "Collection: Not for listing"
+        );
 
         // Verify the sender has listed it
-        require(_tokenIdsOfSellerForCollection[msg.sender][_collection].contains(_tokenId), "Order: Token not listed");
+        require(
+            _tokenIdsOfSellerForCollection[msg.sender][_collection].contains(
+                _tokenId
+            ),
+            "Order: Token not listed"
+        );
 
         // Adjust the information
         _askDetails[_collection][_tokenId].price = _newPrice;
@@ -1386,15 +1601,25 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _tradingFee,
         uint256 _creatorFee
     ) external onlyAdmin {
-        require(!_collectionAddressSet.contains(_collection), "Operations: Collection already listed");
-        require(IERC721(_collection).supportsInterface(0x80ac58cd), "Operations: Not ERC721");
+        require(
+            !_collectionAddressSet.contains(_collection),
+            "Operations: Collection already listed"
+        );
+        require(
+            IERC721(_collection).supportsInterface(0x80ac58cd),
+            "Operations: Not ERC721"
+        );
 
         require(
-            (_creatorFee == 0 && _creator == address(0)) || (_creatorFee != 0 && _creator != address(0)),
+            (_creatorFee == 0 && _creator == address(0)) ||
+                (_creatorFee != 0 && _creator != address(0)),
             "Operations: Creator parameters incorrect"
         );
 
-        require(_tradingFee + _creatorFee <= TOTAL_MAX_FEE, "Operations: Sum of fee must inferior to TOTAL_MAX_FEE");
+        require(
+            _tradingFee + _creatorFee <= TOTAL_MAX_FEE,
+            "Operations: Sum of fee must inferior to TOTAL_MAX_FEE"
+        );
 
         _collectionAddressSet.add(_collection);
 
@@ -1406,7 +1631,13 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
             creatorFee: _creatorFee
         });
 
-        emit CollectionNew(_collection, _creator, _whitelistChecker, _tradingFee, _creatorFee);
+        emit CollectionNew(
+            _collection,
+            _creator,
+            _whitelistChecker,
+            _tradingFee,
+            _creatorFee
+        );
     }
 
     /**
@@ -1414,8 +1645,14 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _collection: collection address
      * @dev Callable by admin
      */
-    function closeCollectionForTradingAndListing(address _collection) external onlyAdmin {
-        require(_collectionAddressSet.contains(_collection), "Operations: Collection not listed");
+    function closeCollectionForTradingAndListing(address _collection)
+        external
+        onlyAdmin
+    {
+        require(
+            _collectionAddressSet.contains(_collection),
+            "Operations: Collection not listed"
+        );
 
         _collections[_collection].status = CollectionStatus.Close;
         _collectionAddressSet.remove(_collection);
@@ -1439,14 +1676,21 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _tradingFee,
         uint256 _creatorFee
     ) external onlyAdmin {
-        require(_collectionAddressSet.contains(_collection), "Operations: Collection not listed");
+        require(
+            _collectionAddressSet.contains(_collection),
+            "Operations: Collection not listed"
+        );
 
         require(
-            (_creatorFee == 0 && _creator == address(0)) || (_creatorFee != 0 && _creator != address(0)),
+            (_creatorFee == 0 && _creator == address(0)) ||
+                (_creatorFee != 0 && _creator != address(0)),
             "Operations: Creator parameters incorrect"
         );
 
-        require(_tradingFee + _creatorFee <= TOTAL_MAX_FEE, "Operations: Sum of fee must inferior to TOTAL_MAX_FEE");
+        require(
+            _tradingFee + _creatorFee <= TOTAL_MAX_FEE,
+            "Operations: Sum of fee must inferior to TOTAL_MAX_FEE"
+        );
 
         _collections[_collection] = Collection({
             status: CollectionStatus.Open,
@@ -1456,7 +1700,13 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
             creatorFee: _creatorFee
         });
 
-        emit CollectionUpdate(_collection, _creator, _whitelistChecker, _tradingFee, _creatorFee);
+        emit CollectionUpdate(
+            _collection,
+            _creator,
+            _whitelistChecker,
+            _tradingFee,
+            _creatorFee
+        );
     }
 
     /**
@@ -1465,8 +1715,14 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _maximumAskPrice: maximum ask price
      * @dev Callable by admin
      */
-    function updateMinimumAndMaximumPrices(uint256 _minimumAskPrice, uint256 _maximumAskPrice) external onlyAdmin {
-        require(_minimumAskPrice < _maximumAskPrice, "Operations: _minimumAskPrice < _maximumAskPrice");
+    function updateMinimumAndMaximumPrices(
+        uint256 _minimumAskPrice,
+        uint256 _maximumAskPrice
+    ) external onlyAdmin {
+        require(
+            _minimumAskPrice < _maximumAskPrice,
+            "Operations: _minimumAskPrice < _maximumAskPrice"
+        );
 
         minimumAskPrice = _minimumAskPrice;
         maximumAskPrice = _maximumAskPrice;
@@ -1495,9 +1751,20 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _tokenId: tokenId
      * @dev Callable by owner
      */
-    function recoverNonFungibleToken(address _token, uint256 _tokenId) external onlyOwner nonReentrant {
-        require(!_askTokenIds[_token].contains(_tokenId), "Operations: NFT not recoverable");
-        IERC721(_token).safeTransferFrom(address(this), address(msg.sender), _tokenId);
+    function recoverNonFungibleToken(address _token, uint256 _tokenId)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(
+            !_askTokenIds[_token].contains(_tokenId),
+            "Operations: NFT not recoverable"
+        );
+        IERC721(_token).safeTransferFrom(
+            address(this),
+            address(msg.sender),
+            _tokenId
+        );
 
         emit NonFungibleTokenRecovery(_token, _tokenId);
     }
@@ -1508,9 +1775,18 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _adminAddress: address of the admin
      * @param _treasuryAddress: address of the treasury
      */
-    function setAdminAndTreasuryAddresses(address _adminAddress, address _treasuryAddress) external onlyOwner {
-        require(_adminAddress != address(0), "Operations: Admin address cannot be zero");
-        require(_treasuryAddress != address(0), "Operations: Treasury address cannot be zero");
+    function setAdminAndTreasuryAddresses(
+        address _adminAddress,
+        address _treasuryAddress
+    ) external onlyOwner {
+        require(
+            _adminAddress != address(0),
+            "Operations: Admin address cannot be zero"
+        );
+        require(
+            _treasuryAddress != address(0),
+            "Operations: Treasury address cannot be zero"
+        );
 
         adminAddress = _adminAddress;
         treasuryAddress = _treasuryAddress;
@@ -1523,11 +1799,10 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param collection: address of the collection
      * @param tokenIds: array of tokenId
      */
-    function viewAsksByCollectionAndTokenIds(address collection, uint256[] calldata tokenIds)
-        external
-        view
-        returns (bool[] memory statuses, Ask[] memory askInfo)
-    {
+    function viewAsksByCollectionAndTokenIds(
+        address collection,
+        uint256[] calldata tokenIds
+    ) external view returns (bool[] memory statuses, Ask[] memory askInfo) {
         uint256 length = tokenIds.length;
 
         statuses = new bool[](length);
@@ -1605,15 +1880,22 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
     {
         uint256 length = size;
 
-        if (length > _tokenIdsOfSellerForCollection[seller][collection].length() - cursor) {
-            length = _tokenIdsOfSellerForCollection[seller][collection].length() - cursor;
+        if (
+            length >
+            _tokenIdsOfSellerForCollection[seller][collection].length() - cursor
+        ) {
+            length =
+                _tokenIdsOfSellerForCollection[seller][collection].length() -
+                cursor;
         }
 
         tokenIds = new uint256[](length);
         askInfo = new Ask[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            tokenIds[i] = _tokenIdsOfSellerForCollection[seller][collection].at(cursor + i);
+            tokenIds[i] = _tokenIdsOfSellerForCollection[seller][collection].at(
+                cursor + i
+            );
             askInfo[i] = _askDetails[collection][tokenIds[i]];
         }
 
@@ -1656,7 +1938,10 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param collection: address of the collection
      * @param price: listed price
      */
-    function calculatePriceAndFeesForCollection(address collection, uint256 price)
+    function calculatePriceAndFeesForCollection(
+        address collection,
+        uint256 price
+    )
         external
         view
         returns (
@@ -1678,11 +1963,10 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _tokenIds: array of tokenIds
      * @dev if collection is not for trading, it returns array of bool with false
      */
-    function canTokensBeListed(address _collection, uint256[] calldata _tokenIds)
-        external
-        view
-        returns (bool[] memory listingStatuses)
-    {
+    function canTokensBeListed(
+        address _collection,
+        uint256[] calldata _tokenIds
+    ) external view returns (bool[] memory listingStatuses) {
         listingStatuses = new bool[](_tokenIds.length);
 
         if (_collections[_collection].status != CollectionStatus.Open) {
@@ -1709,8 +1993,14 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _price,
         bool _withBNB
     ) internal {
-        require(_collections[_collection].status == CollectionStatus.Open, "Collection: Not for trading");
-        require(_askTokenIds[_collection].contains(_tokenId), "Buy: Not for sale");
+        require(
+            _collections[_collection].status == CollectionStatus.Open,
+            "Collection: Not for trading"
+        );
+        require(
+            _askTokenIds[_collection].contains(_tokenId),
+            "Buy: Not for sale"
+        );
 
         Ask memory askOrder = _askDetails[_collection][_tokenId];
 
@@ -1719,13 +2009,16 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         require(msg.sender != askOrder.seller, "Buy: Buyer cannot be seller");
 
         // Calculate the net price (collected by seller), trading fee (collected by treasury), creator fee (collected by creator)
-        (uint256 netPrice, uint256 tradingFee, uint256 creatorFee) = _calculatePriceAndFeesForCollection(
-            _collection,
-            _price
-        );
+        (
+            uint256 netPrice,
+            uint256 tradingFee,
+            uint256 creatorFee
+        ) = _calculatePriceAndFeesForCollection(_collection, _price);
 
         // Update storage information
-        _tokenIdsOfSellerForCollection[askOrder.seller][_collection].remove(_tokenId);
+        _tokenIdsOfSellerForCollection[askOrder.seller][_collection].remove(
+            _tokenId
+        );
         delete _askDetails[_collection][_tokenId];
         _askTokenIds[_collection].remove(_tokenId);
 
@@ -1734,7 +2027,9 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
 
         // Update pending revenues for treasury/creator (if any!)
         if (creatorFee != 0) {
-            pendingRevenue[_collections[_collection].creatorAddress] += creatorFee;
+            pendingRevenue[
+                _collections[_collection].creatorAddress
+            ] += creatorFee;
         }
 
         // Update trading fee if not equal to 0
@@ -1743,10 +2038,22 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
         }
 
         // Transfer NFT to buyer
-        IERC721(_collection).safeTransferFrom(address(this), address(msg.sender), _tokenId);
+        IERC721(_collection).safeTransferFrom(
+            address(this),
+            address(msg.sender),
+            _tokenId
+        );
 
         // Emit event
-        emit Trade(_collection, _tokenId, askOrder.seller, msg.sender, _price, netPrice, _withBNB);
+        emit Trade(
+            _collection,
+            _tokenId,
+            askOrder.seller,
+            msg.sender,
+            _price,
+            netPrice,
+            _withBNB
+        );
     }
 
     /**
@@ -1754,7 +2061,10 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _collection: address of the collection
      * @param _askPrice: listed price
      */
-    function _calculatePriceAndFeesForCollection(address _collection, uint256 _askPrice)
+    function _calculatePriceAndFeesForCollection(
+        address _collection,
+        uint256 _askPrice
+    )
         internal
         view
         returns (
@@ -1776,10 +2086,17 @@ contract ERC721NFTMarketV1 is ERC721Holder, Ownable, ReentrancyGuard {
      * @param _collection: address of the collection
      * @param _tokenId: tokenId
      */
-    function _canTokenBeListed(address _collection, uint256 _tokenId) internal view returns (bool) {
-        address whitelistCheckerAddress = _collections[_collection].whitelistChecker;
+    function _canTokenBeListed(address _collection, uint256 _tokenId)
+        internal
+        view
+        returns (bool)
+    {
+        address whitelistCheckerAddress = _collections[_collection]
+            .whitelistChecker;
         return
             (whitelistCheckerAddress == address(0)) ||
-            ICollectionWhitelistChecker(whitelistCheckerAddress).canList(_tokenId);
+            ICollectionWhitelistChecker(whitelistCheckerAddress).canList(
+                _tokenId
+            );
     }
 }

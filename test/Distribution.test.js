@@ -63,8 +63,6 @@ const nBlocks = (currentBlock, n) => {
 describe('Distribution', function () {
 
   before(async () => {
-    await hre.run('compile')
-
     const accounts = await web3.eth.getAccounts()
     owner = accounts[0]
     person = accounts[1]

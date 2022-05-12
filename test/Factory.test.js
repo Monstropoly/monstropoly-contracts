@@ -60,13 +60,14 @@ describe('MonstropolyFactory', function () {
         await myDeployer.grantRole(MINTER_ROLE, owner.address)
         await myDeployer.grantRole(LOCKER_ROLE, locker.address)
     })
-    describe.only('generateGen and mint', () => {
+    describe('generateGen and mint', () => {
         it('can mint a random gen', async () => {
             const owner = person.address
             const gen = GEN
             const rarity = 1
             const breedUses = 3
-            const response = await myFactory.mint(owner, gen, rarity, breedUses)
+            const generation = 1
+            const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             const receipt = await response.wait()
             let nft = await myFactory.tokenOfId('0')
             let tokenOwner = await myFactory.ownerOf('0')
@@ -83,7 +84,8 @@ describe('MonstropolyFactory', function () {
             const gen = GEN
             const rarity = 1
             const breedUses = 3
-            await myFactory.mint(owner, gen, rarity, breedUses)
+            const generation = 1
+            await myFactory.mint(owner, gen, rarity, breedUses, generation)
             const existence0 = await myFactory.exists('0')
             const existence1 = await myFactory.exists('1')
             expect(existence0).to.equal(true)
@@ -95,9 +97,10 @@ describe('MonstropolyFactory', function () {
             const gen = GEN
             const rarity = 1
             const breedUses = 3
-            await myFactory.mint(owner, gen, rarity, breedUses)
+            const generation = 1
+            await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await expect(
-                myFactory.mint(owner, gen, rarity, breedUses)
+                myFactory.mint(owner, gen, rarity, breedUses, generation)
             ).to.be.revertedWith(
                 'MonstropolyFactory: gen already exists'
             )
@@ -141,17 +144,23 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can get tokenURI when _tokenURIs is empty', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let tokenURI = await myFactory.tokenURI('0')
             expect(tokenURI).to.equal(BASE_URI + '0')
         })
 
         it('can get tokenURI when _tokenURIs is empty after setBaseURI', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let tokenURI = await myFactory.tokenURI('0')
             await myFactory.setBaseURI(BASE_URI2)
             let tokenURI2 = await myFactory.tokenURI('0')
@@ -160,9 +169,12 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can get tokenURI when _tokenURIs is setted', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await myFactory.setBaseURI(BASE_URI2)
             await myFactory.setTokenURI('0', IPFS_CID)
             let tokenURI = await myFactory.tokenURI('0')
@@ -170,11 +182,13 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can get tokenURI when _tokenURIs is setted only in some IDs', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            let gen2 = await myScience.generateAssetView(asset, SALT2, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
-            const receipt2 = await myFactory.mint(person.address, gen2.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+            const receipt2 = await myFactory.mint(owner, GEN2, rarity, breedUses, generation)
             await myFactory.setTokenURI('1', IPFS_CID)
             let tokenURI0 = await myFactory.tokenURI('0')
             let tokenURI1 = await myFactory.tokenURI('1')
@@ -184,17 +198,23 @@ describe('MonstropolyFactory', function () {
     })
     describe('lock stuff', () => {
         it('can get isLocked', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let locked = await myFactory.isLocked('0')
             expect(locked).to.equal(false)
         })
 
         it('can lockToken', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let locked = await myFactory.isLocked('0')
             expect(locked).to.equal(false)
             await (await myFactory.connect(locker)).lockToken('0')
@@ -203,9 +223,12 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can unlockToken', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let locked = await myFactory.isLocked('0')
             expect(locked).to.equal(false)
             await (await myFactory.connect(locker)).lockToken('0')
@@ -217,9 +240,12 @@ describe('MonstropolyFactory', function () {
         })
 
         it('reverts when trying to transfer lockedToken', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let locked = await myFactory.isLocked('0')
             expect(locked).to.equal(false)
             await (await myFactory.connect(locker)).lockToken('0')
@@ -234,26 +260,35 @@ describe('MonstropolyFactory', function () {
 
     describe('approvals stuff', () => {
         it('can get isApproved being the owner', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let approval = await myFactory.isApproved(person.address, '0')
             expect(approval).to.equal(true)
         })
 
         it('can get isApproved after approve', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await (await myFactory.connect(person)).approve(person2.address, '0')
             let approval = await myFactory.isApproved(person2.address, '0')
             expect(approval).to.equal(true)
         })
 
         it('can get isApproved after setApprovalForAll', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await (await myFactory.connect(person)).setApprovalForAll(person2.address, true)
             let approval = await myFactory.isApproved(person2.address, '0')
             expect(approval).to.equal(true)
@@ -269,9 +304,12 @@ describe('MonstropolyFactory', function () {
 
     describe('burn stuff', () => {
         it('can burn being owner', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             let existence = await myFactory.exists('0')
             expect(existence).to.equal(true)
             await (await myFactory.connect(person)).burn('0')
@@ -280,9 +318,12 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can burn being approved', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await (await myFactory.connect(person)).approve(person2.address, '0')
             let existence = await myFactory.exists('0')
             expect(existence).to.equal(true)
@@ -292,9 +333,12 @@ describe('MonstropolyFactory', function () {
         })
 
         it('can burn being operator', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
             await (await myFactory.connect(person)).setApprovalForAll(person2.address, true)
             let existence = await myFactory.exists('0')
             expect(existence).to.equal(true)
@@ -304,38 +348,44 @@ describe('MonstropolyFactory', function () {
         })
 
         it('when burn gen is free again', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
-            let free0 = await myFactory.freeGen(gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+            let free0 = await myFactory.freeGen(gen)
             let existence = await myFactory.exists('0')
             expect(existence).to.equal(true)
             await (await myFactory.connect(person)).burn('0')
             existence = await myFactory.exists('0')
-            let free1 = await myFactory.freeGen(gen.gen_)
+            let free1 = await myFactory.freeGen(gen)
             expect(existence).to.equal(false)
             expect(free0).to.equal(false)
             expect(free1).to.equal(true)
         })
 
         it('when burn gen is free again and can mint same gen', async () => {
-            let asset = '0'
-            let gen = await myScience.generateAssetView(asset, SALT, false);
-            const receipt = await myFactory.mint(person.address, gen.gen_)
-            let free0 = await myFactory.freeGen(gen.gen_)
+            const owner = person.address
+            const gen = GEN
+            const rarity = 1
+            const breedUses = 3
+            const generation = 1
+            const receipt = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+            let free0 = await myFactory.freeGen(gen)
             let existence = await myFactory.exists('0')
             expect(existence).to.equal(true)
             await (await myFactory.connect(person)).burn('0')
             existence = await myFactory.exists('0')
-            let free1 = await myFactory.freeGen(gen.gen_)
+            let free1 = await myFactory.freeGen(gen)
             expect(existence).to.equal(false)
             expect(free0).to.equal(false)
             expect(free1).to.equal(true)
-            await myFactory.mint(person.address, gen.gen_)
-            let free2 = await myFactory.freeGen(gen.gen_)
+            await myFactory.mint(owner, gen, rarity, breedUses, generation)
+            let free2 = await myFactory.freeGen(gen)
             expect(free2).to.equal(false)
             let token = await myFactory.tokenOfId('0')
-            expect(token.genetic).to.equal(gen.gen_)
+            expect(token.genetic).to.equal(gen)
         })
     })
 })

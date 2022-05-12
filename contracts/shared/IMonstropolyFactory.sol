@@ -7,12 +7,11 @@ import "./IMonstropolyData.sol";
 /// @notice Creates Monstropoly's NFTs
 /// @dev Derived from ERC721 to represent assets in Monstropoly
 interface IMonstropolyFactory {
-
     struct Token {
         uint8 rarity;
         uint8 breedUses;
         // NFT creation timestamp
-        uint bornAt; //TBD: use smaller uint and try to organize to save gas
+        uint256 bornAt; //TBD: use smaller uint and try to organize to save gas
         address gamer; //TBD: remove if unused
         address breeder; //TBD: remove if unused
         // string defining NFT random and module values
@@ -25,14 +24,24 @@ interface IMonstropolyFactory {
     /// @param to Address of the receiver
     /// @param tokenId Unique uint identificator of NFT
     /// @param genetic String defining NFT random and module values
-    event Mint(address indexed from, address indexed to, uint256 indexed tokenId, uint8 rarity, uint8 breedUses, string genetic);
+    event Mint(
+        address indexed from,
+        address indexed to,
+        uint256 indexed tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        string genetic
+    );
 
     /// @notice Returns if to is approved or owner
     /// @dev calls to _isApprovedOrOwner
     /// @param to Address of spender
     /// @param tokenId Unique uint identificator of NFT
     /// @return True for approved false if not
-    function isApproved(address to, uint256 tokenId) external view returns (bool);
+    function isApproved(address to, uint256 tokenId)
+        external
+        view
+        returns (bool);
 
     /// @notice Returns base to compute URI
     /// @return _baseURI
@@ -56,24 +65,24 @@ interface IMonstropolyFactory {
     /// @notice Returns wether or not the tokenId is locked
     /// @param tokenId Unique uint identificator of NFT
     /// @return True for locked false for unlocked
-    function isLocked(uint256 tokenId) external view returns(bool);
+    function isLocked(uint256 tokenId) external view returns (bool);
 
     /// @notice Returns whether or not the tokenId exists
     /// @param tokenId Unique uint identificator of NFT
     /// @return True if exists, false inexistent
     function exists(uint256 tokenId) external view returns (bool);
 
-    function getGenesisMinter(uint256 tokenId) external view returns(address);
+    function getGenesisMinter(uint256 tokenId) external view returns (address);
 
     /// @notice Returns Token struct of tokenId
     /// @param tokenId Unique uint identificator of NFT
     /// @return Token struct
-    function tokenOfId(uint256 tokenId) external view returns(Token memory);
+    function tokenOfId(uint256 tokenId) external view returns (Token memory);
 
     /// @notice Returns wether or not gen is free
     /// @param gen String defining NFT random and module values
     /// @return True for free false for not free
-    function freeGen(string memory gen) external view returns(bool); 
+    function freeGen(string memory gen) external view returns (bool);
 
     /// @notice Burns tokenId
     /// @dev Sets token.genetic to free
@@ -84,7 +93,13 @@ interface IMonstropolyFactory {
     /// @param to Receiver of the NFT
     /// @param genes String defining NFT random and module values
     /// @return tokenId
-    function mint(address to, string memory genes, uint8 rarity, uint8 breedUses, uint8 generation) external returns(uint);
+    function mint(
+        address to,
+        string memory genes,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation
+    ) external returns (uint256);
 
     /// @notice Sets base URI used in tokenURI
     /// @param newBaseTokenURI String with base URI
@@ -95,11 +110,11 @@ interface IMonstropolyFactory {
     /// @param _tokenURI String with tokenId's URI
     function setTokenURI(uint256 tokenId, string memory _tokenURI) external;
 
-    /// @notice Sets contract URI 
+    /// @notice Sets contract URI
     /// @dev Returns a JSON with contract metadata
     /// @param contractURI String with contract metadata
     function setContractURI(string memory contractURI) external;
-    
+
     /// @notice Locks tokenId
     /// @param tokenId Unique uint identificator of NFT
     function lockToken(uint256 tokenId) external;

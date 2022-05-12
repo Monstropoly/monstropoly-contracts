@@ -46,8 +46,6 @@ const nBlocks = (currentBlock, n) => {
 describe('Farming', function () {
 
   before(async () => {
-    await hre.run('compile')
-
     const accounts = await web3.eth.getAccounts()
     owner = accounts[0]
     person = accounts[1]
@@ -169,10 +167,10 @@ describe('Farming', function () {
       expect(etherToNumber(pending)).to.gt(0)
     })
     it('cannot deposit if not approved', async () => {
-      await expectRevert(myFarming.depositFrom(owner, ONE_ETHER), "ERC20: transfer amount exceeds allowance")
+      await expectRevert(myFarming.depositFrom(owner, ONE_ETHER), "ERC20: insufficient allowance")
     })
     it('cannot deposit if exceeds balance', async () => {
-      await expectRevert(myFarming.depositFrom(owner, ether('1000000000000')), "ERC20: transfer amount exceeds balance")
+      await expectRevert(myFarming.depositFrom(owner, ether('1000000000000')), "ERC20: insufficient allowance")
     })
     it('can deposit twice (not getting rewards)', async () => {
       await myErc20.approve(myFarming.address, TWO_ETHER)

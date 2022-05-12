@@ -19,7 +19,6 @@ describe('ERC20', function () {
     let myDeployer, myMPOLY, myVault
 
     before(async () => {
-        await hre.run('compile');
         [owner, team, person, bot] = await ethers.getSigners();
     })
     beforeEach(async () => {

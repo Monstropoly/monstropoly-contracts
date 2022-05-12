@@ -116,12 +116,14 @@ describe('CoinCharger', function () {
 
             await expectRevert(
                 (await myCharger.connect(person)).transferFrom(myMPOLY.address, person.address, owner.address, amount),
-                'ERC20: transfer amount exceeds allowance'
+                'ERC20: insufficient allowance'
             )
         });
 
         it('cant transferFrom ERC20 to EOA if no balance', async () => {
             const amount = ethers.constants.MaxUint256
+
+            await myMPOLY.connect(person).approve(myCharger.address, ethers.constants.MaxUint256)
 
             await expectRevert(
                 (await myCharger.connect(person)).transferFrom(myMPOLY.address, person.address, owner.address, amount),
