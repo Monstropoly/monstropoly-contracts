@@ -50,11 +50,11 @@ describe('NFTStaking', function () {
         await myDeployer.grantRole(LOCKER_ROLE, nftStaking)
 
         const owner = staker.address
-        const gen = GEN
+        const tokenId = 0
         const rarity = 1
         const breedUses = 3
         const generation = 1
-        const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+        const response = await myFactory.mint(owner, tokenId, rarity, breedUses, generation)
         await response.wait()
     })
     describe('Stake', () => {
@@ -162,6 +162,45 @@ describe('NFTStaking', function () {
                 myNFTSTaking, 'UnstakeNFT'
             ).withArgs(
                 tokenId
+            )
+        })
+
+        it('owner cant stake again until 1 week', async () => {
+            const tokenId = 0
+            await expect(
+                myNFTSTaking.connect(staker).stake(tokenId)
+            ).to.emit(
+                myNFTSTaking, 'StakeNFT'
+            ).withArgs(
+                tokenId,
+                staker.address
+            )
+
+            await expect(
+                myNFTSTaking.connect(staker).unstake(tokenId)
+            ).to.emit(
+                myNFTSTaking, 'UnstakeNFT'
+            ).withArgs(
+                tokenId
+            )
+
+            await expect(
+                myNFTSTaking.connect(staker).stake(tokenId)
+            ).to.be.revertedWith(
+                'MonstropolyNFTStaking: checkLastUnstake'
+            )
+
+            const lastUnstake = await myNFTSTaking.getLastUnstake(tokenId)
+
+            await ethers.provider.send("evm_setNextBlockTimestamp", [parseInt(lastUnstake) + 604801])
+
+            await expect(
+                myNFTSTaking.connect(staker).stake(tokenId)
+            ).to.emit(
+                myNFTSTaking, 'StakeNFT'
+            ).withArgs(
+                tokenId,
+                staker.address
             )
         })
     })

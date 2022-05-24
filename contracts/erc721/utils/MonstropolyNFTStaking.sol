@@ -16,12 +16,26 @@ contract MonstropolyNFTStaking is
     string public override versionRecipient = "2.4.0";
     bytes32 public constant FACTORY_ID = keccak256("FACTORY");
 
+    mapping (uint256 => uint256) private _lastUnstake;
+
     modifier checkStaker(uint256 tokenId, address staker) {
         require(
             _checkStaker(tokenId, staker),
             "MonstropolyNFTStaking: checkStaker or inexistent"
         );
         _;
+    }
+
+    modifier checkLastUnstake(uint256 tokenId) {
+        require(
+            _checkLastUnstake(tokenId),
+            "MonstropolyNFTStaking: checkLastUnstake"
+        );
+        _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize() public initializer {
@@ -35,9 +49,14 @@ contract MonstropolyNFTStaking is
         _setTrustedForwarder(_forwarder);
     }
 
+    function getLastUnstake(uint256 tokenId) public view returns(uint256) {
+        return _lastUnstake[tokenId];
+    }
+
     function stake(uint256 tokenId)
         external
         checkStaker(tokenId, _msgSender())
+        checkLastUnstake(tokenId)
     {
         _lockToken(tokenId);
         emit StakeNFT(tokenId, _msgSender());
@@ -48,6 +67,7 @@ contract MonstropolyNFTStaking is
         checkStaker(tokenId, _msgSender())
     {
         _unlockToken(tokenId);
+        _lastUnstake[tokenId] = block.timestamp;
         emit UnstakeNFT(tokenId);
     }
 
@@ -60,6 +80,10 @@ contract MonstropolyNFTStaking is
             IMonstropolyDeployer(config).get(FACTORY_ID)
         );
         return staker == factory.ownerOf(tokenId);
+    }
+
+    function _checkLastUnstake(uint256 tokenId) internal view returns(bool) {
+        return (_lastUnstake[tokenId] + 1 weeks) < block.timestamp;
     }
 
     function _lockToken(uint256 tokenId) internal {

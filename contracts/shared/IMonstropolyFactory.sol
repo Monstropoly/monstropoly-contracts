@@ -10,27 +10,35 @@ interface IMonstropolyFactory {
     struct Token {
         uint8 rarity;
         uint8 breedUses;
+        uint8 generation;
+        bool locked;
         // NFT creation timestamp
         uint256 bornAt; //TBD: use smaller uint and try to organize to save gas
         address gamer; //TBD: remove if unused
         address breeder; //TBD: remove if unused
-        // string defining NFT random and module values
-        string genetic;
-        //TBD: include generation
     }
 
     /// @notice Emitted when a NFT is minted
-    /// @param from TBD remove this as always is addr0
     /// @param to Address of the receiver
     /// @param tokenId Unique uint identificator of NFT
-    /// @param genetic String defining NFT random and module values
     event Mint(
-        address indexed from,
         address indexed to,
         uint256 indexed tokenId,
         uint8 rarity,
         uint8 breedUses,
-        string genetic
+        uint8 generation
+    );
+
+    /// @notice Emitted when a NFT is locked
+    /// @param tokenId Unique uint identificator of NFT
+    event LockToken(
+        uint256 indexed tokenId
+    );
+
+    /// @notice Emitted when a NFT is unlocked
+    /// @param tokenId Unique uint identificator of NFT
+    event UnlockToken(
+        uint256 indexed tokenId
     );
 
     /// @notice Returns if to is approved or owner
@@ -72,17 +80,10 @@ interface IMonstropolyFactory {
     /// @return True if exists, false inexistent
     function exists(uint256 tokenId) external view returns (bool);
 
-    function getGenesisMinter(uint256 tokenId) external view returns (address);
-
     /// @notice Returns Token struct of tokenId
     /// @param tokenId Unique uint identificator of NFT
     /// @return Token struct
     function tokenOfId(uint256 tokenId) external view returns (Token memory);
-
-    /// @notice Returns wether or not gen is free
-    /// @param gen String defining NFT random and module values
-    /// @return True for free false for not free
-    function freeGen(string memory gen) external view returns (bool);
 
     /// @notice Burns tokenId
     /// @dev Sets token.genetic to free
@@ -91,11 +92,11 @@ interface IMonstropolyFactory {
 
     /// @notice Mints tokenId with genes in its struct
     /// @param to Receiver of the NFT
-    /// @param genes String defining NFT random and module values
+    /// @param tokenId String defining NFT random and module values
     /// @return tokenId
     function mint(
         address to,
-        string memory genes,
+        uint256 tokenId,
         uint8 rarity,
         uint8 breedUses,
         uint8 generation

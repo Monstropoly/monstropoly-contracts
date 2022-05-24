@@ -15,8 +15,6 @@ interface IMonstropolyMagicBoxesShop {
         uint256 treasuryPercentage;
         // Assets inside the box
         uint256 amount;
-        // specie
-        uint8 specie;
     }
 
     /// @notice Emitted when a Magic Box is bought
@@ -45,15 +43,13 @@ interface IMonstropolyMagicBoxesShop {
     /// @param token Address of the token to buy the box (address(0) to ETH)
     /// @param burnPercentage Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage Percentage of the price to send to treasury (in ether units)
-    /// @param specie Specie of the NFT
     event MagicBoxUpdated(
         uint256 id,
         uint256 amount,
         uint256 price,
         address token,
         uint256 burnPercentage,
-        uint256 treasuryPercentage,
-        uint8 specie
+        uint256 treasuryPercentage
     );
 
     /// @notice Emitted when a Magic Box's supply is updated
@@ -83,18 +79,25 @@ interface IMonstropolyMagicBoxesShop {
     /// @param token Address of the token to buy the box (address(0) to ETH)
     /// @param burnPercentage_ Percentage of the price to burn (in ether units)
     /// @param treasuryPercentage_ Percentage of the price to send to treasury (in ether units)
-    /// @param specie Specie of the NFT
     function updateMagicBox(
         uint256 id,
         uint256 amount,
         uint256 price,
         address token,
         uint256 burnPercentage_,
-        uint256 treasuryPercentage_,
-        uint8 specie
+        uint256 treasuryPercentage_
     ) external;
 
     /// @notice Purchases Magic Boxes
-    /// @param id Identificator of the Magic Box
-    function purchase(uint256 id) external payable;
+    /// @param boxId Identificator of the Magic Box
+    function purchase(
+        uint256 boxId,
+        uint256[] calldata tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation,
+        uint256 deadline,
+        bytes memory signature, 
+        address signer
+    ) external payable;
 }

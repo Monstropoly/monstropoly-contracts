@@ -999,8 +999,9 @@ contract MonstropolyMarketplace is
         view
         returns (address)
     {
-        IMonstropolyFactory _factory = IMonstropolyFactory(_collection);
-        return _factory.getGenesisMinter(_tokenId);
+        // IMonstropolyFactory _factory = IMonstropolyFactory(_collection);
+        // return _factory.getGenesisMinter(_tokenId);
+        return address(0); //TBD
     }
 
     /**

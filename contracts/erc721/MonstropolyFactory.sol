@@ -4,13 +4,8 @@ pragma solidity ^0.8.2;
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
-import "../utils/AccessControlProxyPausable.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
-import "../shared/IMonstropolyData.sol";
 import "../shared/IMonstropolyDeployer.sol";
 import "../shared/IMonstropolyFactory.sol";
 
@@ -19,32 +14,24 @@ import "../shared/IMonstropolyFactory.sol";
 /// @dev Derived from ERC721 to represent assets in Monstropoly
 contract MonstropolyFactory is
     IMonstropolyFactory,
-    Initializable,
     ERC721Upgradeable,
     ERC721EnumerableUpgradeable,
     ERC721URIStorageUpgradeable,
-    PausableUpgradeable,
-    AccessControlProxyPausable,
     ERC721BurnableUpgradeable,
     UUPSUpgradeableByRole
 {
-    using CountersUpgradeable for CountersUpgradeable.Counter;
-
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant LOCKER_ROLE = keccak256("LOCKER_ROLE");
-
-    CountersUpgradeable.Counter private _tokenIdCounter;
 
     string private _baseTokenURI;
     string private _contractUri;
 
-    mapping(bytes32 => bool) private _genetics;
-    mapping(uint256 => bool) private _lockedTokens;
     mapping(uint256 => Token) private _tokensById;
-    mapping(uint256 => uint8) private _generationById; //TBD: include in struct
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize() public initializer {
         __ERC721_init("Monstropoly Monsters", "MPM");
@@ -86,20 +73,6 @@ contract MonstropolyFactory is
         return _exists(tokenId);
     }
 
-    function getGenesisMinter(uint256 tokenId) external view returns (address) {
-        return address(0);
-    }
-
-    function getTokenGeneration(uint256 tokenId) external view returns (uint8) {
-        return _generationById[tokenId]; //TBD: include in struct
-    }
-
-    /// @inheritdoc IMonstropolyFactory
-    function freeGen(string calldata gen) public view returns (bool) {
-        bytes32 _genId = _hashGen(gen);
-        return !_genetics[_genId];
-    }
-
     /// @inheritdoc IMonstropolyFactory
     function baseURI() public view returns (string memory) {
         return _baseURI();
@@ -126,7 +99,7 @@ contract MonstropolyFactory is
 
     /// @inheritdoc IMonstropolyFactory
     function isLocked(uint256 tokenId) public view returns (bool) {
-        return _lockedTokens[tokenId];
+        return _tokensById[tokenId].locked;
     }
 
     /// @inheritdoc IMonstropolyFactory
@@ -155,45 +128,39 @@ contract MonstropolyFactory is
 
     /// @inheritdoc IMonstropolyFactory
     function lockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
-        _lockedTokens[tokenId] = true;
+        _tokensById[tokenId].locked = true;
+        emit LockToken(tokenId);
     }
 
     /// @inheritdoc IMonstropolyFactory
     function unlockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
-        _lockedTokens[tokenId] = false;
+        _tokensById[tokenId].locked = false;
+        emit UnlockToken(tokenId);
     }
 
     /// @inheritdoc IMonstropolyFactory
     function mint(
         address to_,
-        string calldata genetic_,
+        uint256 tokenId_,
         uint8 rarity_,
         uint8 breedUses_,
         uint8 generation_
     ) public onlyRole(MINTER_ROLE) returns (uint256) {
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
+        Token memory token_ = Token(
+            rarity_,
+            breedUses_,
+            generation_,
+            false,
+            block.timestamp,
+            to_,
+            to_
+        );
+        _tokensById[tokenId_] = token_;
+        _safeMint(to_, tokenId_);
 
-        bytes32 genId_ = _hashGen(genetic_);
-        require(!_genetics[genId_], "MonstropolyFactory: gen already exists");
-        {
-            _genetics[genId_] = true;
-            Token memory token_ = Token(
-                rarity_,
-                breedUses_,
-                block.timestamp,
-                to_,
-                to_,
-                genetic_
-            );
-            _tokensById[tokenId] = token_;
-            _generationById[tokenId] = generation_;
-            _safeMint(to_, tokenId);
-        }
+        emit Mint(to_, tokenId_, rarity_, breedUses_, generation_);
 
-        emit Mint(address(0), to_, tokenId, rarity_, breedUses_, genetic_);
-
-        return tokenId;
+        return tokenId_;
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
@@ -206,12 +173,6 @@ contract MonstropolyFactory is
 
     function _setContractURI(string memory contractURI_) internal {
         _contractUri = contractURI_;
-    }
-
-    /// @dev Deconstructs gen and computes its hash
-    function _hashGen(string memory gen) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(gen));
-        // return IMonstropolyData(IMonstropolyDeployer(config).get(keccak256("DATA"))).hashGen(gen);
     }
 
     // The following functions are overrides required by Solidity.
@@ -238,8 +199,6 @@ contract MonstropolyFactory is
         internal
         override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
     {
-        bytes32 genId_ = _hashGen(_tokensById[tokenId].genetic);
-        _genetics[genId_] = false;
         super._burn(tokenId);
     }
 
@@ -252,7 +211,7 @@ contract MonstropolyFactory is
         override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
         whenNotPaused
     {
-        require(!_lockedTokens[tokenId], "MonstropolyFactory: locked token");
+        require(!_tokensById[tokenId].locked, "MonstropolyFactory: locked token");
         super._beforeTokenTransfer(from, to, tokenId);
     }
 }

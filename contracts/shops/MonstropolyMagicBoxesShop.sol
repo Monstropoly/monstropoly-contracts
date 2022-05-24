@@ -10,6 +10,8 @@ import "../shared/IMonstropolyMagicBoxesShop.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@opengsn/contracts/src/BaseRelayRecipient.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/SignatureCheckerUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/draft-EIP712Upgradeable.sol";
 
 /**
     Why stop using ERC1155?
@@ -23,22 +25,25 @@ contract MonstropolyMagicBoxesShop is
     IMonstropolyMagicBoxesShop,
     UUPSUpgradeableByRole,
     BaseRelayRecipient,
-    CoinCharger
+    CoinCharger,
+    EIP712Upgradeable
 {
     string public override versionRecipient = "2.4.0";
-    string[] private _genetics;
-    uint8[] private _rarities;
-    uint8[] private _breedUses;
+    bytes32 private immutable _Monstropoly_MAGIC_BOXES_SHOP_TYPEHASH =
+        keccak256(
+            "Mint(address receiver,bytes32 tokenId,uint8 rarity,uint8 breedUses,uint8 generation,uint256 validUntil)"
+        );
+
+    bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
+    bytes32 public constant FACTORY_ID = keccak256("FACTORY");
 
     mapping(uint256 => MagicBox) public box;
     mapping(uint256 => uint256) public boxSupply;
     mapping(address => mapping(uint256 => bool)) private _ticketsToBoxId;
 
-    bytes32 public constant DATA_ID = keccak256("DATA");
-    bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
-    bytes32 public constant FACTORY_ID = keccak256("FACTORY");
-
-    uint8[] private _generations; //TBD: reorganize, put here bc of upgrades
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize() public initializer {
         _init();
@@ -46,12 +51,13 @@ contract MonstropolyMagicBoxesShop is
 
     function _init() internal initializer {
         __AccessControlProxyPausable_init(msg.sender);
+        __EIP712_init("MonstropolyMagicBoxesShop", "1");
     }
 
     /// @inheritdoc IMonstropolyMagicBoxesShop
     function setTrustedForwarder(address _forwarder)
         public
-    /* TBD: onlyRole(DEPLOYER)*/
+        onlyRole(DEFAULT_ADMIN_ROLE) 
     {
         _setTrustedForwarder(_forwarder);
     }
@@ -63,8 +69,7 @@ contract MonstropolyMagicBoxesShop is
         uint256 price,
         address token,
         uint256 burnPercentage,
-        uint256 treasuryPercentage,
-        uint8 specie
+        uint256 treasuryPercentage
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _updateMagicBox(
             id,
@@ -72,8 +77,7 @@ contract MonstropolyMagicBoxesShop is
             price,
             token,
             burnPercentage,
-            treasuryPercentage,
-            specie
+            treasuryPercentage
         );
     }
 
@@ -95,109 +99,103 @@ contract MonstropolyMagicBoxesShop is
         emit UpdateTicketBoxId(ticketAddress, boxId, isValid);
     }
 
-    function setMintParams(
-        string[] calldata genetics_,
-        uint8[] calldata rarities_,
-        uint8[] calldata breedUses_,
-        uint8[] calldata generations_ /* TBD: onlyRole(FACTORY_GENETICS_SETTER)*/
-    ) public {
-        delete _genetics;
-        delete _rarities;
-        delete _breedUses;
-        delete _generations;
-        for (uint256 i = 0; i < genetics_.length; i++) {
-            _genetics.push(genetics_[i]);
-            _rarities.push(rarities_[i]);
-            _breedUses.push(breedUses_[i]);
-            _generations.push(generations_[i]);
-        }
-    }
-
     /// @inheritdoc IMonstropolyMagicBoxesShop
-    function purchase(uint256 id) public payable virtual {
-        _spendBoxSupply(id);
+    function purchase(
+        uint256 boxId,
+        uint256[] calldata tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation,
+        uint256 validUntil,
+        bytes memory signature, 
+        address signer
+    ) external payable {
         address account = _msgSender();
-        uint256 price = box[id].price;
+        {
+            uint256 price = box[boxId].price;
 
-        require(price > 0, "MonstropolyMagicBoxesShop: wrong 0 price");
+            require(price > 0, "MonstropolyMagicBoxesShop: wrong 0 price");
 
-        if (box[id].treasuryPercentage > 0) {
-            uint256 treasuryAmount_ = (price * box[id].treasuryPercentage) /
-                100 ether;
-            _transferFrom(
-                box[id].token,
-                account,
-                IMonstropolyDeployer(config).get(TREASURY_WALLET_ID),
-                treasuryAmount_
-            );
+            if (box[boxId].treasuryPercentage > 0) {
+                uint256 treasuryAmount_ = (price * box[boxId].treasuryPercentage) /
+                    100 ether;
+                _transferFrom(
+                    box[boxId].token,
+                    account,
+                    IMonstropolyDeployer(config).get(TREASURY_WALLET_ID),
+                    treasuryAmount_
+                );
+            }
+
+            if (box[boxId].burnPercentage > 0) {
+                uint256 burnAmount_ = (price * box[boxId].burnPercentage) / 100 ether;
+                _burnFromERC20(box[boxId].token, account, burnAmount_);
+            }
         }
-
-        if (box[id].burnPercentage > 0) {
-            uint256 burnAmount_ = (price * box[id].burnPercentage) / 100 ether;
-            _burnFromERC20(box[id].token, account, burnAmount_);
+        
+        {
+            _verifySignature(account, tokenId, rarity, breedUses, generation, validUntil, signature, signer);
+            _spendBoxSupply(boxId);
+            _mintNFT(boxId, account, tokenId, rarity, breedUses, generation);
         }
-
-        _mintNFT(id, account);
     }
 
     function purchaseWithTicket(
-        uint256 tokenId,
+        uint256 ticketTokenId,
         address ticketAddress,
-        uint256 boxId
-    ) public {
-        require(_ticketsToBoxId[ticketAddress][boxId], "Invalid ticket");
+        uint256 boxId,
+        uint256[] calldata tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation,
+        uint256 validUntil,
+        bytes memory signature, 
+        address signer
+    ) external {
         address account = _msgSender();
         IMonstropolyTickets tickets = IMonstropolyTickets(ticketAddress);
-        require(account == tickets.ownerOf(tokenId));
-        _spendBoxSupply(boxId);
-        tickets.burn(tokenId);
-        _mintNFT(boxId, account);
+
+        require(_ticketsToBoxId[ticketAddress][boxId], "Invalid ticket");
+        require(account == tickets.ownerOf(ticketTokenId));
+        
+        {
+            _verifySignature(account, tokenId, rarity, breedUses, generation, validUntil, signature, signer);
+            _spendBoxSupply(boxId);
+            tickets.burn(ticketTokenId);
+            _mintNFT(boxId, account, tokenId, rarity, breedUses, generation);
+        }
     }
 
-    function _mintNFT(uint256 id, address account) internal {
-        require(
-            _genetics.length == box[id].amount,
-            "MonstropolyMagicBoxesShop: not enough genetics"
-        );
+    function _mintNFT(
+        uint256 id, 
+        address account,
+        uint256[] calldata tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation
+    ) internal {
 
         IMonstropolyFactory factory = IMonstropolyFactory(
             IMonstropolyDeployer(config).get(FACTORY_ID)
         );
 
-        uint256[] memory tokenIds_ = new uint256[](box[id].amount);
+        uint256 boxAmount = box[id].amount;
+        require(boxAmount == tokenId.length, "MonstropolyMagicBoxesShop: wrong tokenId array len");
 
-        for (uint256 i = 0; i < box[id].amount; i++) {
-            if (box[id].specie != 0) _checkSpecie(_genetics[i], box[id].specie);
-            tokenIds_[i] = factory.mint(
+        for (uint256 i = 0; i < boxAmount; i++) {
+            factory.mint(
                 account,
-                _genetics[i],
-                _rarities[i],
-                _breedUses[i],
-                _generations[i]
+                tokenId[i],
+                rarity,
+                breedUses,
+                generation
             );
         }
-
-        delete _genetics;
-        delete _rarities;
-        delete _breedUses;
-        delete _generations;
     }
 
     function _spendBoxSupply(uint256 id) internal {
         require(boxSupply[id] > 0, "MonstropolyMagicBoxesShop: no box supply");
         boxSupply[id]--;
-    }
-
-    function _checkSpecie(string memory gen, uint8 specie)
-        internal
-        view
-        returns (bool)
-    {
-        IMonstropolyData data = IMonstropolyData(
-            IMonstropolyDeployer(config).get(DATA_ID)
-        );
-        uint8 decodedSpecie = uint8(data.getValueFromGen(gen, 2));
-        return specie == decodedSpecie;
     }
 
     function _updateMagicBox(
@@ -206,8 +204,7 @@ contract MonstropolyMagicBoxesShop is
         uint256 price,
         address token,
         uint256 burnPercentage_,
-        uint256 treasuryPercentage_,
-        uint8 specie
+        uint256 treasuryPercentage_
     ) internal {
         require(
             (burnPercentage_ + treasuryPercentage_) == 100 ether,
@@ -218,8 +215,7 @@ contract MonstropolyMagicBoxesShop is
             token,
             burnPercentage_,
             treasuryPercentage_,
-            amount,
-            specie
+            amount
         );
         emit MagicBoxUpdated(
             id,
@@ -227,9 +223,51 @@ contract MonstropolyMagicBoxesShop is
             price,
             token,
             burnPercentage_,
-            treasuryPercentage_,
-            specie
+            treasuryPercentage_
         );
+    }
+
+    function _verifySignature(
+        address receiver,
+        uint256[] calldata tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation,
+        uint256 validUntil,
+        bytes memory signature, 
+        address signer
+    ) internal {
+        require(validUntil > block.timestamp || validUntil == 0, "Expired signature");
+        require(hasRole(DEFAULT_ADMIN_ROLE, signer), "Wrong signer"); //TBD: change role
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                _Monstropoly_MAGIC_BOXES_SHOP_TYPEHASH,
+                receiver,
+                _computeHashOfUintArray(tokenId),
+                rarity,
+                breedUses,
+                generation,
+                validUntil
+            )
+        );
+        bytes32 hash = _hashTypedDataV4(structHash);
+
+        bool validation = SignatureCheckerUpgradeable.isValidSignatureNow(
+            signer,
+            hash,
+            signature
+        );
+        require(validation, "Wrong signature");
+    }
+
+    function _computeHashOfUintArray(uint256[] calldata array) public view returns(bytes32) {
+        bytes memory concatenatedHashes;
+        for(uint i = 0; i < array.length; i++) {
+            bytes32 itemHash = keccak256(abi.encode(array[i]));
+            concatenatedHashes = abi.encode(concatenatedHashes, itemHash);
+        }
+        return keccak256(concatenatedHashes);
     }
 
     function _msgSender()

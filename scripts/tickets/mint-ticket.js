@@ -5,8 +5,8 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const TICKETS_ADDR = '0x6b8ff7c5594126125A2d0A56D9Cb372890888677'
-// const TICKETS_ADDR = '0x134B061985C6C77a6735B72D9fa270E0B01C019A'
+const TICKETS_ADDR = '0x94bD38196D583Eb293bC43428F6662249eC83990'
+// const TICKETS_ADDR = '0x994553233b46824fD167A9e289c400C36F5aDBD2'
 // const TICKETS_ADDR = '0x4AaFb46C74D4Cd17D59190dc0B86A0b9e041C6e8'
 
 async function main() {
@@ -18,7 +18,7 @@ async function main() {
     await hre.run('compile');
 
     const signers = await ethers.getSigners()
-    const receiver = signers[0]
+    const receiver = signers[1]
 
     const ticketsContract = await ethers.getContractAt('MonstropolyTickets', TICKETS_ADDR)
 
