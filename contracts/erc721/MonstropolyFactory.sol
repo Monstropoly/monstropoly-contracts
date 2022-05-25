@@ -22,11 +22,15 @@ contract MonstropolyFactory is
 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant LOCKER_ROLE = keccak256("LOCKER_ROLE");
+    bytes32 public constant BREED_USES_SPENDER_ROLE = keccak256("BREED_USES_SPENDER_ROLE");
+    bytes32 public constant GAMER_UPDATER_ROLE = keccak256("GAMER_UPDATER_ROLE");
+    bytes32 public constant BREEDER_UPDATER_ROLE = keccak256("BREEDER_UPDATER_ROLE");
 
     string private _baseTokenURI;
     string private _contractUri;
 
     mapping(uint256 => Token) private _tokensById;
+    mapping(uint256 => bool) private _usedTokenIds;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -71,6 +75,11 @@ contract MonstropolyFactory is
     /// @inheritdoc IMonstropolyFactory
     function exists(uint256 tokenId) public view returns (bool) {
         return _exists(tokenId);
+    }
+
+    /// @inheritdoc IMonstropolyFactory
+    function isTokenIdUsed(uint256 tokenId) public view returns (bool) {
+        return _usedTokenIds[tokenId];
     }
 
     /// @inheritdoc IMonstropolyFactory
@@ -139,6 +148,24 @@ contract MonstropolyFactory is
     }
 
     /// @inheritdoc IMonstropolyFactory
+    function setBreedUses(uint256 tokenId, uint8 usesLeft) public onlyRole(BREED_USES_SPENDER_ROLE) {
+        _tokensById[tokenId].breedUses = usesLeft;
+        emit SetBreedUses(tokenId, usesLeft);
+    }
+
+    /// @inheritdoc IMonstropolyFactory
+    function setGamer(uint256 tokenId, address newGamer) public onlyRole(GAMER_UPDATER_ROLE) {
+        _tokensById[tokenId].gamer = newGamer;
+        emit SetGamer(tokenId, newGamer);
+    }
+
+    /// @inheritdoc IMonstropolyFactory
+    function setBreeder(uint256 tokenId, address newBreeder) public onlyRole(BREEDER_UPDATER_ROLE) {
+        _tokensById[tokenId].breeder = newBreeder;
+        emit SetBreeder(tokenId, newBreeder);
+    }
+
+    /// @inheritdoc IMonstropolyFactory
     function mint(
         address to_,
         uint256 tokenId_,
@@ -146,6 +173,9 @@ contract MonstropolyFactory is
         uint8 breedUses_,
         uint8 generation_
     ) public onlyRole(MINTER_ROLE) returns (uint256) {
+        require(!_usedTokenIds[tokenId_], "MonstropolyFactory: tokenId used");
+        _usedTokenIds[tokenId_] = true;
+
         Token memory token_ = Token(
             rarity_,
             breedUses_,

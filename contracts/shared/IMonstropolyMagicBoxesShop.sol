@@ -93,11 +93,26 @@ interface IMonstropolyMagicBoxesShop {
     function purchase(
         uint256 boxId,
         uint256[] calldata tokenId,
-        uint8 rarity,
+        uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation,
         uint256 deadline,
         bytes memory signature, 
         address signer
     ) external payable;
+
+    /// @notice Purchases Magic Boxes
+    /// @param boxId Identificator of the Magic Box
+    function purchaseWithTicket(
+        uint256 ticketTokenId,
+        address ticketAddress,
+        uint256 boxId,
+        uint256[] calldata tokenId,
+        uint8[] calldata rarity,
+        uint8 breedUses,
+        uint8 generation,
+        uint256 validUntil,
+        bytes memory signature, 
+        address signer
+    ) external;
 }

@@ -20,6 +20,11 @@ const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
 const TICKETS = ethers.utils.id('TICKETS')
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
+const BASE_URI = 'https://monstropoly.io/tickets/'
+const LAUNCHPAD_MAX_SUPPLY = 10
+const NAME = "NAME"
+const SYMBOL = "SYMBOL"
+
 describe('MonstropolyMagicBoxesShop', function () {
 	let owner, person, person2, backend
 
@@ -32,14 +37,6 @@ describe('MonstropolyMagicBoxesShop', function () {
 		backend = accounts[0]
 	})
 	beforeEach(async () => {
-		const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
-        const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
-        const implementation = await MonstropolyTickets.deploy()
-        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', ["NAME", "SYMBOL", "URI", 0, ethers.constants.AddressZero]);
-        const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
-        myTickets = MonstropolyTickets.attach(myProxy.address)
-		await myTickets.grantRole(MINTER_ROLE, owner.address)
-
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
 		myDeployer = await MonstropolyDeployer.deploy()
 
@@ -49,11 +46,20 @@ describe('MonstropolyMagicBoxesShop', function () {
 		let emptyInitializeCalldata = await MonstropolyMagicBoxesShop.interface.encodeFunctionData('initialize', []);
 
 		await myDeployer.setId(ethers.utils.id("DISTRIBUTION_VAULT"), person.address)
-		await myDeployer.setId(ethers.utils.id("TICKETS"), myTickets.address)
 		await myDeployer.deploy(ethers.utils.id("ERC20"), MonstropolyERC20.bytecode, emptyInitializeCalldata)
 		await myDeployer.deploy(ethers.utils.id("MAGIC_BOXES"), MonstropolyMagicBoxesShop.bytecode, emptyInitializeCalldata)
         const factoryImp = await MonstropolyFactory.deploy()
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, emptyInitializeCalldata)
+
+		const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
+        const Launchpad = await ethers.getContractFactory('Launchpad')
+        const myLaunchpad = await Launchpad.deploy()
+        const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [NAME, SYMBOL, BASE_URI, LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
+        const implementation = await MonstropolyTickets.deploy()
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("TICKETS_"), implementation.address, initializeCalldata)
+        const ticketAddress = await myDeployer.get(ethers.utils.id("TICKETS_"))
+        myTickets = MonstropolyTickets.attach(ticketAddress)
+        await myDeployer.grantRole(MINTER_ROLE, owner.address)
 
 		const [erc20, magicBoxes, factory] = await Promise.all([
 			myDeployer.get(ethers.utils.id("ERC20")),
@@ -108,7 +114,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 				Mint: [
 					{ name: 'receiver', type: 'address' },
 					{ name: 'tokenId', type: 'bytes32' },
-					{ name: 'rarity', type: 'uint8' },
+					{ name: 'rarity', type: 'bytes32' },
 					{ name: 'breedUses', type: 'uint8' },
 					{ name: 'generation', type: 'uint8' },
 					{ name: 'validUntil', type: 'uint256' }
@@ -117,7 +123,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			const owner = person.address
             const tokenId = [7]
-            const rarity = 1
+            const rarity = [1]
             const breedUses = 3
             const generation = 1
 			const validUntil = 0
@@ -126,7 +132,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 			const value = {
 				receiver: owner,
 				tokenId: computeHashOfArray(tokenId),
-				rarity: rarity,
+				rarity: computeHashOfArrayUint8(rarity),
 				breedUses: breedUses,
 				generation: generation,
 				validUntil: validUntil
@@ -172,7 +178,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 				Mint: [
 					{ name: 'receiver', type: 'address' },
 					{ name: 'tokenId', type: 'bytes32' },
-					{ name: 'rarity', type: 'uint8' },
+					{ name: 'rarity', type: 'bytes32' },
 					{ name: 'breedUses', type: 'uint8' },
 					{ name: 'generation', type: 'uint8' },
 					{ name: 'validUntil', type: 'uint256' }
@@ -181,7 +187,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 
 			const owner = person.address
             const tokenId = [7]
-            const rarity = 1
+            const rarity = [1]
             const breedUses = 3
             const generation = 1
 			const validUntil = 0
@@ -190,7 +196,7 @@ describe('MonstropolyMagicBoxesShop', function () {
 			const value = {
 				receiver: owner,
 				tokenId: computeHashOfArray(tokenId),
-				rarity: rarity,
+				rarity: computeHashOfArrayUint8(rarity),
 				breedUses: breedUses,
 				generation: generation,
 				validUntil: validUntil
@@ -661,6 +667,16 @@ function computeHashOfArray(array) {
 	let itemHash
 	for(let i = 0; i < array.length; i++) {
 		itemHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256"], [array[i]]))
+		concatenatedHashes = ethers.utils.defaultAbiCoder.encode(["bytes", "bytes32"], [concatenatedHashes, itemHash])
+	}
+	return ethers.utils.keccak256(concatenatedHashes)
+}
+
+function computeHashOfArrayUint8(array) {
+	let concatenatedHashes = '0x'
+	let itemHash
+	for(let i = 0; i < array.length; i++) {
+		itemHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint8"], [array[i]]))
 		concatenatedHashes = ethers.utils.defaultAbiCoder.encode(["bytes", "bytes32"], [concatenatedHashes, itemHash])
 	}
 	return ethers.utils.keccak256(concatenatedHashes)

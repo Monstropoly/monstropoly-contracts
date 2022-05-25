@@ -5,11 +5,11 @@
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
 
-const MAGIC_BOXES_ADDR = '0x8af5d75678AD5CD4329480C7De5075EdE49d2001'
-const FACTORY_ADDR = '0xF22e6fb90De5D3fc6Fe44413B20ef91207F60c04'
+const MAGIC_BOXES_ADDR = '0xcb73644C994D0EaD4BCA7f3B8f2e10B01DD98Af1'
+const FACTORY_ADDR = '0x46A16FEc5332360C255b0846E6425D6762bc8b78'
 
-const TICKETS_ADDR = '0x94bD38196D583Eb293bC43428F6662249eC83990' // BOX_IDs: 0
-// const TICKETS_ADDR = '0x994553233b46824fD167A9e289c400C36F5aDBD2' // BOX_IDs: 1
+const TICKETS_ADDR = '0xe1B436d38Ba7492dae279bE61Efd85cB1b9b474F' // BOX_IDs: 0
+// const TICKETS_ADDR = '0xc241221B82F08398CF70d2fB73e21b3C22666444' // BOX_IDs: 1
 // const TICKETS_ADDR = '0x4AaFb46C74D4Cd17D59190dc0B86A0b9e041C6e8' // BOX_IDs: 2, 3, 4, 5
 
 const NFT_ID = 0
@@ -38,7 +38,8 @@ async function main() {
     const domain = {
         name: 'MonstropolyMagicBoxesShop',
         version: '1',
-        chainId: ethers.provider._hardhatProvider._provider._chainId,
+        chainId: ethers.provider._hardhatProvider._provider._chainId, //mainnet
+        // chainId: ethers.provider._network.chainId, //testnet
         verifyingContract: MAGIC_BOXES_ADDR
     }
 
@@ -46,7 +47,7 @@ async function main() {
         Mint: [
             { name: 'receiver', type: 'address' },
             { name: 'tokenId', type: 'bytes32' },
-            { name: 'rarity', type: 'uint8' },
+            { name: 'rarity', type: 'bytes32' },
             { name: 'breedUses', type: 'uint8' },
             { name: 'generation', type: 'uint8' },
             { name: 'validUntil', type: 'uint256' }
@@ -54,7 +55,7 @@ async function main() {
     }
 
     const tokenId = [7]
-    const rarity = 1
+    const rarity = [1]
     const breedUses = 3
     const generation = 1
     const validUntil = 0
@@ -62,7 +63,7 @@ async function main() {
     const value = {
         receiver: user.address,
         tokenId: computeHashOfArray(tokenId),
-        rarity: rarity,
+        rarity: computeHashOfArrayUint8(rarity),
         breedUses: breedUses,
         generation: generation,
         validUntil: validUntil
@@ -110,7 +111,7 @@ async function main() {
         TICKETS_ADDR,
         BOX_ID,
         tokenId,
-        value.rarity,
+        rarity,
         value.breedUses,
         value.generation,
         value.validUntil,
@@ -149,6 +150,16 @@ function computeHashOfArray(array) {
 	let itemHash
 	for(let i = 0; i < array.length; i++) {
 		itemHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint256"], [array[i]]))
+		concatenatedHashes = ethers.utils.defaultAbiCoder.encode(["bytes", "bytes32"], [concatenatedHashes, itemHash])
+	}
+	return ethers.utils.keccak256(concatenatedHashes)
+}
+
+function computeHashOfArrayUint8(array) {
+	let concatenatedHashes = '0x'
+	let itemHash
+	for(let i = 0; i < array.length; i++) {
+		itemHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["uint8"], [array[i]]))
 		concatenatedHashes = ethers.utils.defaultAbiCoder.encode(["bytes", "bytes32"], [concatenatedHashes, itemHash])
 	}
 	return ethers.utils.keccak256(concatenatedHashes)

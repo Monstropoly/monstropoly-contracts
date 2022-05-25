@@ -149,6 +149,14 @@ contract MonstropolyTickets is
     }
 
     /// @inheritdoc IMonstropolyTickets
+    function safeTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) public {
+        require((from.length == to.length) && (from.length == tokenId.length), "MonstropolyTickets: wrong lengths");
+        for (uint256 i = 0; i < from.length; i++) {
+            safeTransferFrom(from[i], to[i], tokenId[i]);
+        }
+    }
+
+    /// @inheritdoc IMonstropolyTickets
     function mint(address to) public onlyRole(MINTER_ROLE) returns (uint256) {
         return _mintIncrementingCounter(to);
     }

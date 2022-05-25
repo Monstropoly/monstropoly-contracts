@@ -70,6 +70,16 @@ describe('NFTStaking', function () {
             )
         })
 
+        it('store stake time when staking', async () => {
+            const tokenId = 0
+            const response = await myNFTSTaking.connect(staker).stake(tokenId)
+            const block = await ethers.provider.getBlock(response.blockHash)
+            const blockTimestamp = block.timestamp
+            const lastStakeTime = await myNFTSTaking.getLastStake(tokenId)
+            
+            expect(blockTimestamp).to.equal(parseInt(lastStakeTime))
+        })
+
         it('revert when stake if not owner', async () => {
             const tokenId = 0
             await expect(
@@ -108,6 +118,34 @@ describe('NFTStaking', function () {
             ).withArgs(
                 tokenId
             )
+        })
+
+        it('store unstake time when unstaking', async () => {
+            const tokenId = 0
+            await myNFTSTaking.connect(staker).stake(tokenId)
+            const response = await myNFTSTaking.connect(staker).unstake(tokenId)
+            const block = await ethers.provider.getBlock(response.blockHash)
+            const blockTimestamp = block.timestamp
+            const lastUnstakeTime = await myNFTSTaking.getLastUnstake(tokenId)
+            
+            expect(blockTimestamp).to.equal(parseInt(lastUnstakeTime))
+        })
+
+        it('resets unstake time when staking again', async () => {
+            const tokenId = 0
+            await myNFTSTaking.connect(staker).stake(tokenId)
+            const response = await myNFTSTaking.connect(staker).unstake(tokenId)
+            const block = await ethers.provider.getBlock(response.blockHash)
+            const blockTimestamp = block.timestamp
+            const lastUnstakeTime = await myNFTSTaking.getLastUnstake(tokenId)
+            
+            expect(blockTimestamp).to.equal(parseInt(lastUnstakeTime))
+
+            await ethers.provider.send("evm_setNextBlockTimestamp", [parseInt(lastUnstakeTime) + 604801])
+            await myNFTSTaking.connect(staker).stake(tokenId)
+            const lastUnstakeTime2 = await myNFTSTaking.getLastUnstake(tokenId)
+
+            expect(lastUnstakeTime2).to.equal('0')
         })
 
         it('revert when unstake if not owner', async () => {

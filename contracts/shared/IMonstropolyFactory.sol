@@ -41,6 +41,30 @@ interface IMonstropolyFactory {
         uint256 indexed tokenId
     );
 
+    /// @notice Emitted when breed uses of NFT is modified
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param usesLeft Breed uses left
+    event SetBreedUses(
+        uint256 indexed tokenId,
+        uint8 indexed usesLeft
+    );
+
+    /// @notice Emitted when address with gaming rights is modified
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param newGamer New gamer
+    event SetGamer(
+        uint256 indexed tokenId,
+        address indexed newGamer
+    );
+
+    /// @notice Emitted when address with breeding rights is modified
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param newBreeder New breeder
+    event SetBreeder(
+        uint256 indexed tokenId,
+        address indexed newBreeder
+    );
+
     /// @notice Returns if to is approved or owner
     /// @dev calls to _isApprovedOrOwner
     /// @param to Address of spender
@@ -79,6 +103,11 @@ interface IMonstropolyFactory {
     /// @param tokenId Unique uint identificator of NFT
     /// @return True if exists, false inexistent
     function exists(uint256 tokenId) external view returns (bool);
+
+    /// @notice Returns whether or not the tokenId is used
+    /// @param tokenId Unique uint identificator of NFT
+    /// @return True if used, false unused
+    function isTokenIdUsed(uint256 tokenId) external view returns (bool);
 
     /// @notice Returns Token struct of tokenId
     /// @param tokenId Unique uint identificator of NFT
@@ -123,4 +152,19 @@ interface IMonstropolyFactory {
     /// @notice Unlocks tokenId
     /// @param tokenId Unique uint identificator of NFT
     function unlockToken(uint256 tokenId) external;
+
+    /// @notice Sets breed uses left
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param usesLeft Breed uses left of NFT
+    function setBreedUses(uint256 tokenId, uint8 usesLeft) external;
+
+    /// @notice Sets address with game rights
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param newGamer Address with game rights
+    function setGamer(uint256 tokenId, address newGamer) external;
+
+    /// @notice Sets address with breed rights
+    /// @param tokenId Unique uint identificator of NFT
+    /// @param newBreeder Address with breed rights
+    function setBreeder(uint256 tokenId, address newBreeder) external;
 }

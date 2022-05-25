@@ -40,15 +40,19 @@ describe('MonstropolyTickets', function () {
     })
 
     beforeEach(async () => {
+        const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
         const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
         const Launchpad = await ethers.getContractFactory('Launchpad')
-        const ERC1967Proxy = await ethers.getContractFactory('ERC1967Proxy')
+        myDeployer = await MonstropolyDeployer.deploy()
+
         myLaunchpad = await Launchpad.deploy()
-        const implementation = await MonstropolyTickets.deploy()
         const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [NAME, SYMBOL, BASE_URI, LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
-        const myProxy = await ERC1967Proxy.deploy(implementation.address, initializeCalldata)
-        myTickets = MonstropolyTickets.attach(myProxy.address)
-        await myTickets.grantRole(MINTER_ROLE, owner.address)
+        const implementation = await MonstropolyTickets.deploy()
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("TICKETS_"), implementation.address, initializeCalldata)
+        const factory = await myDeployer.get(ethers.utils.id("TICKETS_"))
+        myTickets = MonstropolyTickets.attach(factory)
+
+        await myDeployer.grantRole(MINTER_ROLE, owner.address)
     })
 
     describe('mint', () => {
@@ -73,7 +77,7 @@ describe('MonstropolyTickets', function () {
             await expect(
                 myTickets.connect(person).mint(person.address)
             ).to.be.revertedWith(
-                'AccessControl: account ' + String(person.address).toLowerCase() + ' is missing role ' + MINTER_ROLE
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + MINTER_ROLE
             )
         })
 
@@ -97,6 +101,36 @@ describe('MonstropolyTickets', function () {
             const _balance = await myTickets.balanceOf(person.address)
             expect(_balance).to.equal(10)
         })
+
+        it('can safeTransferFromBatch and emit Transfer event', async () => {
+            const amount = 3
+            await expect(
+                myTickets.mintBatch(person.address, amount)
+            ).to.emit(
+                myTickets, 'Transfer'
+            ).withArgs(
+                ethers.constants.AddressZero,
+                person.address,
+                1
+            )
+
+            const froms = [person.address, person.address, person.address]
+            const tos = [person2.address, person2.address, payee.address]
+            const tokenIds = [0, 1, 2]
+
+            await expect(
+                myTickets.connect(person).safeTransferFromBatch(froms, tos, tokenIds)
+            ).to.emit(
+                myTickets, 'Transfer'
+            ).withArgs(
+                person.address,
+                person2.address,
+                1
+            )
+
+            const _balance = await myTickets.balanceOf(person.address)
+            expect(_balance).to.equal(0)
+        })
     })
 
     describe('uris', () => {
@@ -114,7 +148,7 @@ describe('MonstropolyTickets', function () {
         it('only default admin role can setBaseURI', async () => {
             await expectRevert(
                 (await myTickets.connect(person)).setBaseURI(BASE_URI2),
-                'AccessControl: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
             )
         })
 
@@ -129,10 +163,10 @@ describe('MonstropolyTickets', function () {
             expect(contractURI).to.equal(CONTRACT_URI2)
         })
 
-        it('only default admin role can setBaseURI', async () => {
+        it('only default admin role can setContractURI', async () => {
             await expectRevert(
                 (await myTickets.connect(person)).setContractURI(CONTRACT_URI2),
-                'AccessControl: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
             )
         })
 

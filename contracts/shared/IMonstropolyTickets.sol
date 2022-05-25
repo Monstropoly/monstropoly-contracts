@@ -62,6 +62,13 @@ interface IMonstropolyTickets {
     /// @param amount Number of NFTs to be minted
     function mintBatch(address to, uint256 amount) external;
 
+    /// @notice Transfer multiple tokenIds in one TX
+    /// @dev Batched safeTransferFrom. Arrays length must be equal
+    /// @param from Senders of the NFT
+    /// @param to Receivers of the NFT
+    /// @param tokenId Unique uint identificators of NFTs
+    function safeTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) external;
+
     /// @notice Mints amount of NFTs
     /// @dev Reserved for launchpad address
     /// @param to Receiver of the NFT

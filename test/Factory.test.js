@@ -95,7 +95,7 @@ describe('MonstropolyFactory', function () {
             await expect(
                 myFactory.mint(owner, tokenId, rarity, breedUses, generation)
             ).to.be.revertedWith(
-                'ERC721: token already minted'
+                'MonstropolyFactory: tokenId used'
             )
         })
     })

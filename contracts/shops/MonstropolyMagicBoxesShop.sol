@@ -31,7 +31,7 @@ contract MonstropolyMagicBoxesShop is
     string public override versionRecipient = "2.4.0";
     bytes32 private immutable _Monstropoly_MAGIC_BOXES_SHOP_TYPEHASH =
         keccak256(
-            "Mint(address receiver,bytes32 tokenId,uint8 rarity,uint8 breedUses,uint8 generation,uint256 validUntil)"
+            "Mint(address receiver,bytes32 tokenId,bytes32 rarity,uint8 breedUses,uint8 generation,uint256 validUntil)"
         );
 
     bytes32 public constant TREASURY_WALLET_ID = keccak256("TREASURY_WALLET");
@@ -103,7 +103,7 @@ contract MonstropolyMagicBoxesShop is
     function purchase(
         uint256 boxId,
         uint256[] calldata tokenId,
-        uint8 rarity,
+        uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation,
         uint256 validUntil,
@@ -145,7 +145,7 @@ contract MonstropolyMagicBoxesShop is
         address ticketAddress,
         uint256 boxId,
         uint256[] calldata tokenId,
-        uint8 rarity,
+        uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation,
         uint256 validUntil,
@@ -170,7 +170,7 @@ contract MonstropolyMagicBoxesShop is
         uint256 id, 
         address account,
         uint256[] calldata tokenId,
-        uint8 rarity,
+        uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation
     ) internal {
@@ -186,7 +186,7 @@ contract MonstropolyMagicBoxesShop is
             factory.mint(
                 account,
                 tokenId[i],
-                rarity,
+                rarity[i],
                 breedUses,
                 generation
             );
@@ -230,7 +230,7 @@ contract MonstropolyMagicBoxesShop is
     function _verifySignature(
         address receiver,
         uint256[] calldata tokenId,
-        uint8 rarity,
+        uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation,
         uint256 validUntil,
@@ -245,7 +245,7 @@ contract MonstropolyMagicBoxesShop is
                 _Monstropoly_MAGIC_BOXES_SHOP_TYPEHASH,
                 receiver,
                 _computeHashOfUintArray(tokenId),
-                rarity,
+                _computeHashOfUint8Array(rarity),
                 breedUses,
                 generation,
                 validUntil
@@ -262,6 +262,15 @@ contract MonstropolyMagicBoxesShop is
     }
 
     function _computeHashOfUintArray(uint256[] calldata array) public view returns(bytes32) {
+        bytes memory concatenatedHashes;
+        for(uint i = 0; i < array.length; i++) {
+            bytes32 itemHash = keccak256(abi.encode(array[i]));
+            concatenatedHashes = abi.encode(concatenatedHashes, itemHash);
+        }
+        return keccak256(concatenatedHashes);
+    }
+
+    function _computeHashOfUint8Array(uint8[] calldata array) public view returns(bytes32) {
         bytes memory concatenatedHashes;
         for(uint i = 0; i < array.length; i++) {
             bytes32 itemHash = keccak256(abi.encode(array[i]));
