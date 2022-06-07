@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.9;
 
 /// @title The interface for MonstropolyMagicBoxesShop
@@ -17,11 +18,22 @@ interface IMonstropolyMagicBoxesShop {
         uint256 amount;
     }
 
-    /// @notice Emitted when a Magic Box is bought
-    /// @param account Address of the buyer
-    /// @param id Identificator of the box
-    /// @param amount Amount of boxes bought
-    event MagicBoxPurchased(address account, uint256 id, uint256 amount);
+    /// @notice Emitted when a Magic Box is bought paying price
+    /// @param boxId Magic box identificator
+    /// @param tokenId Array with tokenIds for monster NFTs
+    event Purchase(uint256 boxId, uint256[] tokenId);
+
+    /// @notice Emitted when a Magic Box is bought redeeming a ticket
+    /// @param ticketTokenId TokenId of the ticket to redeem
+    /// @param ticketAddress Address of the ticket to redeem
+    /// @param boxId Magic box identificator
+    /// @param tokenId Array with tokenIds for monster NFTs
+    event PurchaseWithTicket(
+        uint256 ticketTokenId,
+        address ticketAddress,
+        uint256 boxId,
+        uint256[] tokenId
+    );
 
     /// @notice Emitted when an asset is opened
     /// @dev Assets are opened individually (not full box)
@@ -90,19 +102,35 @@ interface IMonstropolyMagicBoxesShop {
 
     /// @notice Purchases Magic Boxes
     /// @param boxId Identificator of the Magic Box
+    /// @param tokenId Token identificators of NFT
+    /// @param rarity Rarities of NFT
+    /// @param breedUses Initial breed uses left of NFT
+    /// @param generation Generation of NFT
+    /// @param validUntil Expiring time of signature
+    /// @param signature Offchain signature from backend
+    /// @param signer Offchain signer (backend)
     function purchase(
         uint256 boxId,
         uint256[] calldata tokenId,
         uint8[] calldata rarity,
         uint8 breedUses,
         uint8 generation,
-        uint256 deadline,
-        bytes memory signature, 
+        uint256 validUntil,
+        bytes memory signature,
         address signer
     ) external payable;
 
     /// @notice Purchases Magic Boxes
+    /// @param ticketTokenId Identificator of the ticket to redeem
+    /// @param ticketAddress Address of the ticket to redeem
     /// @param boxId Identificator of the Magic Box
+    /// @param tokenId Token identificators of NFT
+    /// @param rarity Rarities of NFT
+    /// @param breedUses Initial breed uses left of NFT
+    /// @param generation Generation of NFT
+    /// @param validUntil Expiring time of signature
+    /// @param signature Offchain signature from backend
+    /// @param signer Offchain signer (backend)
     function purchaseWithTicket(
         uint256 ticketTokenId,
         address ticketAddress,
@@ -112,7 +140,7 @@ interface IMonstropolyMagicBoxesShop {
         uint8 breedUses,
         uint8 generation,
         uint256 validUntil,
-        bytes memory signature, 
+        bytes memory signature,
         address signer
     ) external;
 }

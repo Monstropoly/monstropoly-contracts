@@ -1,14 +1,11 @@
 const hre = require('hardhat')
 const ethers = hre.ethers
-const {
-    expectRevert
-} = require('@openzeppelin/test-helpers')
-const { artifacts } = require('hardhat')
 const { expect } = require('chai')
 
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
-const LOCKER_ROLE = ethers.utils.id('LOCKER_ROLE')
+const MINTER_ROLE = ethers.utils.id('TICKETS_MINTER_ROLE')
+const TICKETS_ADMIN_ROLE = ethers.utils.id('TICKETS_ADMIN_ROLE')
+const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
 const BASE_URI = 'https://monstropoly.io/tickets/'
 const BASE_URI2 = 'https://ifps.io/ipfs/'
 const CONTRACT_URI = ''
@@ -37,13 +34,20 @@ describe('MonstropolyTickets', function () {
         person2 = accounts[2]
         payee = accounts[3]
         validator = accounts[3]
+        discountedOG = accounts[4]
+        discountedOG2 = accounts[5]
+        discountedVIP = accounts[6]
+        discountedVIP2 = accounts[7]
     })
 
     beforeEach(async () => {
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
         const MonstropolyTickets = await ethers.getContractFactory('MonstropolyTickets')
         const Launchpad = await ethers.getContractFactory('Launchpad')
-        myDeployer = await MonstropolyDeployer.deploy()
+        myDeployer = await MonstropolyDeployer.connect(accounts[9]).deploy()
+        await myDeployer.connect(accounts[9]).grantRole(DEFAULT_ADMIN_ROLE, accounts[0].address)
+        await myDeployer.connect(accounts[9]).renounceRole(DEFAULT_ADMIN_ROLE, accounts[9].address)
+        myDeployer = myDeployer.connect(accounts[0])
 
         myLaunchpad = await Launchpad.deploy()
         const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [NAME, SYMBOL, BASE_URI, LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
@@ -53,6 +57,8 @@ describe('MonstropolyTickets', function () {
         myTickets = MonstropolyTickets.attach(factory)
 
         await myDeployer.grantRole(MINTER_ROLE, owner.address)
+        await myDeployer.grantRole(TICKETS_ADMIN_ROLE, owner.address)
+        await myDeployer.setId(TREASURY_WALLET, payee.address)
     })
 
     describe('mint', () => {
@@ -100,6 +106,12 @@ describe('MonstropolyTickets', function () {
 
             const _balance = await myTickets.balanceOf(person.address)
             expect(_balance).to.equal(10)
+
+            const tokens = await myTickets.getLastOwnedTokenIds(person.address, amount, 0)
+
+            for (let j = 0; j < amount; j++) {
+                expect(parseInt(tokens[j])).to.equal(j)
+            }
         })
 
         it('can safeTransferFromBatch and emit Transfer event', async () => {
@@ -116,7 +128,21 @@ describe('MonstropolyTickets', function () {
 
             const froms = [person.address, person.address, person.address]
             const tos = [person2.address, person2.address, payee.address]
+            const wrongTos = [person2.address, person2.address]
             const tokenIds = [0, 1, 2]
+            const wrongTokenIds = [0, 1]
+
+            await expect(
+                myTickets.connect(person).safeTransferFromBatch(froms, tos, wrongTokenIds)
+            ).to.revertedWith(
+                'MonstropolyTickets: wrong lengths'
+            )
+
+            await expect(
+                myTickets.connect(person).safeTransferFromBatch(froms, wrongTos, tokenIds)
+            ).to.revertedWith(
+                'MonstropolyTickets: wrong lengths'
+            )
 
             await expect(
                 myTickets.connect(person).safeTransferFromBatch(froms, tos, tokenIds)
@@ -146,9 +172,10 @@ describe('MonstropolyTickets', function () {
         })
 
         it('only default admin role can setBaseURI', async () => {
-            await expectRevert(
-                (await myTickets.connect(person)).setBaseURI(BASE_URI2),
-                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
+            await expect(
+                myTickets.connect(person).setBaseURI(BASE_URI2)
+            ).to.revertedWith(
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + TICKETS_ADMIN_ROLE
             )
         })
 
@@ -164,9 +191,10 @@ describe('MonstropolyTickets', function () {
         })
 
         it('only default admin role can setContractURI', async () => {
-            await expectRevert(
-                (await myTickets.connect(person)).setContractURI(CONTRACT_URI2),
-                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
+            await expect(
+                myTickets.connect(person).setContractURI(CONTRACT_URI2)
+            ).to.revertedWith(
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + TICKETS_ADMIN_ROLE
             )
         })
 
@@ -246,22 +274,101 @@ describe('MonstropolyTickets', function () {
         })
     })
 
+    describe('ETHManager', () => {
+
+        it('can setMaster', async () => {
+            const ethManager = await myTickets.ethManager()
+            const ethManagerContract = await ethers.getContractAt('ETHManager', ethManager)
+            const master1 = await ethManagerContract.master()
+            await ethManagerContract.setMaster(owner.address)
+            const master2 = await ethManagerContract.master()
+            expect(master1).to.equal(myTickets.address)
+            expect(master2).to.equal(owner.address)
+        })
+
+        it('only owner can setMaster', async () => {
+            const ethManager = await myTickets.ethManager()
+            const ethManagerContract = await ethers.getContractAt('ETHManager', ethManager)
+
+            await expect(
+                ethManagerContract.connect(person).setMaster(owner.address)
+            ).to.be.revertedWith(
+                "Ownable: caller is not the owner"
+            )
+        })
+
+        it('only master can safeTransfer', async () => {
+            const ethManager = await myTickets.ethManager()
+            const ethManagerContract = await ethers.getContractAt('ETHManager', ethManager)
+
+            await expect(
+                ethManagerContract.connect(person).safeTransferETH(person.address, 1)
+            ).to.be.revertedWith(
+                "ETHManager: caller is not the _master"
+            )
+        })
+
+        it('reverts if eth transfer fails', async () => {
+            const ethManager = await myTickets.ethManager()
+            const ethManagerContract = await ethers.getContractAt('ETHManager', ethManager)
+            await ethManagerContract.setMaster(owner.address)
+
+            await expect(
+                ethManagerContract.safeTransferETH(myTickets.address, 1)
+            ).to.be.revertedWith(
+                "ETHManager: ETH_TRANSFER_FAILED"
+            )
+        })
+    })
+
     describe('Galler', () => {
         const listingTime = parseInt(Date.now() * 2 / 1000)
         const expirationTime = parseInt(Date.now() * 3 / 1000)
+        const discountAmount1 = ethers.utils.parseEther('0.2')
+        const discountAmount2 = ethers.utils.parseEther('0.3')
         beforeEach(async () => {
-            await myLaunchpad.addCampaign(
+            const ethManager = await myTickets.ethManager()
+            const addresses = [
                 myTickets.address,
-                1,
+                ethManager,
                 payee.address,
+                validator.address
+            ]
+            const values = [
+                0,
                 LAUNCHPAD_PRICE,
+                LAUNCHPAD_MAX_SUPPLY,
                 listingTime,
                 expirationTime,
-                LAUNCHPAD_MAX_SUPPLY,
                 LAUNCHPAD_MAX_BATCH,
-                LAUNCHPAD_MAX_PER_ADDRESS,
-                validator.address
+                LAUNCHPAD_MAX_PER_ADDRESS
+            ]
+            await myLaunchpad.addCampaign(
+                addresses,
+                1,
+                values
             )
+
+            await myTickets.setDiscountAmounts(discountAmount1, discountAmount2)
+            const discountAccountsOG = [discountedOG.address, discountedOG2.address]
+            const discountAccountsVIP = [discountedVIP.address, discountedVIP2.address]
+            await myTickets.setDiscountAccounts(discountAccountsOG, 1)
+            await myTickets.setDiscountAccounts(discountAccountsVIP, 2)
+        })
+
+        it('can getDiscount', async () => {
+            const discountAccountsOG = [discountedOG.address, discountedOG2.address]
+            const discount = await myTickets.getDiscount(discountAccountsOG[0])
+            await myTickets.setDiscountAccounts(discountAccountsOG, 0)
+            const discount2 = await myTickets.getDiscount(discountAccountsOG[0])
+            await myTickets.setDiscountAccounts(discountAccountsOG, 1)
+            const discount3 = await myTickets.getDiscount(discountAccountsOG[1])
+            await myTickets.setDiscountAccounts(discountAccountsOG, 2)
+            const discount4 = await myTickets.getDiscount(discountAccountsOG[1])
+            expect(discount.toString()).to.equal(discountAmount1.toString())
+            expect(discount2.toString()).to.equal('0')
+            expect(discount3.toString()).to.equal(discountAmount1.toString())
+            expect(discount4.toString()).to.equal(discountAmount2.toString())
         })
 
         it('cant mintWhitelisted before listingTime', async () => {
@@ -285,7 +392,7 @@ describe('MonstropolyTickets', function () {
         })
 
         it('can mintWhitelisted', async () => {
-
+            const launchSupply1 = await myTickets.getLaunchpadSupply()
             await ethers.provider.send("evm_setNextBlockTimestamp", [listingTime])
 
             const hash = ethers.utils.solidityKeccak256(
@@ -302,6 +409,184 @@ describe('MonstropolyTickets', function () {
 
             const _owner = await myTickets.ownerOf(0)
             expect(_owner).to.equal(person.address)
+
+            const launchSupply2 = await myTickets.getLaunchpadSupply()
+            expect(parseInt(launchSupply1)).to.equal(0)
+            expect(parseInt(launchSupply2)).to.equal(1)
+        })
+
+        it('can mintWhitelisted with discountOG', async () => {
+            const launchSupply1 = await myTickets.getLaunchpadSupply()
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, discountedOG.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+
+            const ethManager = await myTickets.ethManager()
+            const ethManagerBalancePre = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePre = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePre = await ethers.provider.getBalance(discountedOG.address)
+
+            await myLaunchpad.connect(discountedOG).mintWhitelisted(
+                myTickets.address, 
+                1, 
+                signature, 
+                { value: LAUNCHPAD_PRICE }
+            )
+
+            const ethManagerBalancePost = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePost = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePost = await ethers.provider.getBalance(discountedOG.address)
+
+            const vaultExpected = LAUNCHPAD_PRICE.sub(discountAmount1)
+            const vaultReal = vaultBalancePost.sub(vaultBalancePre)
+            const userSpent = discountedBalancePre.sub(discountedBalancePost)
+
+            expect(ethManagerBalancePre.toString()).to.equal('0')
+            expect(ethManagerBalancePost.toString()).to.equal('0')
+            expect(vaultExpected.toString()).to.equal(vaultReal.toString())
+            expect(parseInt(userSpent.toString())).to.be.gte(parseInt(vaultExpected.toString()))
+            expect(parseInt(userSpent.toString())).to.be.lt(parseInt(LAUNCHPAD_PRICE.toString()))
+
+            const _owner = await myTickets.ownerOf(0)
+            expect(_owner).to.equal(discountedOG.address)
+
+            const launchSupply2 = await myTickets.getLaunchpadSupply()
+            expect(parseInt(launchSupply1)).to.equal(0)
+            expect(parseInt(launchSupply2)).to.equal(1)
+        })
+
+        it('can mintWhitelisted with discountOG with size > 1', async () => {
+            const launchSupply1 = await myTickets.getLaunchpadSupply()
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, discountedOG.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            const size = 3
+
+            const ethManager = await myTickets.ethManager()
+            const ethManagerBalancePre = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePre = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePre = await ethers.provider.getBalance(discountedOG.address)
+
+            await myLaunchpad.connect(discountedOG).mintWhitelisted(
+                myTickets.address, 
+                size, 
+                signature, 
+                { value: LAUNCHPAD_PRICE.mul(size) }
+            )
+
+            const ethManagerBalancePost = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePost = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePost = await ethers.provider.getBalance(discountedOG.address)
+
+            const vaultExpected = (LAUNCHPAD_PRICE.sub(discountAmount1)).mul(size)
+            const vaultReal = vaultBalancePost.sub(vaultBalancePre)
+            const userSpent = discountedBalancePre.sub(discountedBalancePost)
+
+            expect(ethManagerBalancePre.toString()).to.equal('0')
+            expect(ethManagerBalancePost.toString()).to.equal('0')
+            expect(vaultExpected.toString()).to.equal(vaultReal.toString())
+            expect(parseInt(userSpent.toString())).to.be.gte(parseInt(vaultExpected.toString()))
+            expect(parseInt(userSpent.toString())).to.be.lt(parseInt((LAUNCHPAD_PRICE.mul(size)).toString()))
+
+            const _owner = await myTickets.ownerOf(0)
+            expect(_owner).to.equal(discountedOG.address)
+
+            const launchSupply2 = await myTickets.getLaunchpadSupply()
+            expect(parseInt(launchSupply1)).to.equal(0)
+            expect(parseInt(launchSupply2)).to.equal(size)
+        })
+
+        it('can mintWhitelisted with discountVIP', async () => {
+            const launchSupply1 = await myTickets.getLaunchpadSupply()
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, discountedVIP2.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+
+            const ethManager = await myTickets.ethManager()
+            const ethManagerBalancePre = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePre = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePre = await ethers.provider.getBalance(discountedVIP2.address)
+
+            await myLaunchpad.connect(discountedVIP2).mintWhitelisted(
+                myTickets.address, 
+                1, 
+                signature, 
+                { value: LAUNCHPAD_PRICE }
+            )
+
+            const ethManagerBalancePost = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePost = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePost = await ethers.provider.getBalance(discountedVIP2.address)
+
+            const vaultExpected = LAUNCHPAD_PRICE.sub(discountAmount2)
+            const vaultReal = vaultBalancePost.sub(vaultBalancePre)
+            const userSpent = discountedBalancePre.sub(discountedBalancePost)
+
+            expect(ethManagerBalancePre.toString()).to.equal('0')
+            expect(ethManagerBalancePost.toString()).to.equal('0')
+            expect(vaultExpected.toString()).to.equal(vaultReal.toString())
+            expect(parseInt(userSpent.toString())).to.be.gte(parseInt(vaultExpected.toString()))
+            expect(parseInt(userSpent.toString())).to.be.lt(parseInt(LAUNCHPAD_PRICE.toString()))
+
+            const _owner = await myTickets.ownerOf(0)
+            expect(_owner).to.equal(discountedVIP2.address)
+
+            const launchSupply2 = await myTickets.getLaunchpadSupply()
+            expect(parseInt(launchSupply1)).to.equal(0)
+            expect(parseInt(launchSupply2)).to.equal(1)
+        })
+
+        it('can mintWhitelisted with discountVIP with size > 1', async () => {
+            const launchSupply1 = await myTickets.getLaunchpadSupply()
+
+            const hash = ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address'],
+                [ethers.provider._network.chainId, myLaunchpad.address, myTickets.address, discountedVIP.address]
+            )
+            const signature = validator.signMessage(ethers.utils.arrayify(hash))
+            const size = 3
+
+            const ethManager = await myTickets.ethManager()
+            const ethManagerBalancePre = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePre = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePre = await ethers.provider.getBalance(discountedVIP.address)
+
+            await myLaunchpad.connect(discountedVIP).mintWhitelisted(
+                myTickets.address, 
+                size, 
+                signature, 
+                { value: LAUNCHPAD_PRICE.mul(size) }
+            )
+
+            const ethManagerBalancePost = await ethers.provider.getBalance(ethManager)
+            const vaultBalancePost = await ethers.provider.getBalance(payee.address)
+            const discountedBalancePost = await ethers.provider.getBalance(discountedVIP.address)
+
+            const vaultExpected = (LAUNCHPAD_PRICE.sub(discountAmount2)).mul(size)
+            const vaultReal = vaultBalancePost.sub(vaultBalancePre)
+            const userSpent = discountedBalancePre.sub(discountedBalancePost)
+
+            expect(ethManagerBalancePre.toString()).to.equal('0')
+            expect(ethManagerBalancePost.toString()).to.equal('0')
+            expect(vaultExpected.toString()).to.equal(vaultReal.toString())
+            expect(parseInt(userSpent.toString())).to.be.gte(parseInt(vaultExpected.toString()))
+            expect(parseInt(userSpent.toString())).to.be.lt(parseInt((LAUNCHPAD_PRICE.mul(size)).toString()))
+
+            const _owner = await myTickets.ownerOf(0)
+            expect(_owner).to.equal(discountedVIP.address)
+
+            const launchSupply2 = await myTickets.getLaunchpadSupply()
+            expect(parseInt(launchSupply1)).to.equal(0)
+            expect(parseInt(launchSupply2)).to.equal(size)
         })
 
         it('cant mintWhitelisted more than batch size', async () => {
@@ -369,7 +654,7 @@ describe('MonstropolyTickets', function () {
                     { value: ethers.utils.parseEther('2') }
                 )
             ).to.be.revertedWith(
-                'MonstropolyTickets: max launchpad supply reached'
+                'reach campaign total max supply'
             )
         })
 

@@ -40,9 +40,8 @@ contract MonstropolyRelayer is EIP712 {
     function updateAddresses(
         IERC20 token_,
         IUniswap uniswap_,
-        MonstropolyPaymaster paymaster_
-    ) external /**TBD: include role */
-    {
+        MonstropolyPaymaster paymaster_ /**TBD: include role */
+    ) external {
         token = token_;
         uniswap = uniswap_;
         paymaster = paymaster_;

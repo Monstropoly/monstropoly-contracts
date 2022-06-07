@@ -1,15 +1,29 @@
 module.exports = {
-    skipFiles: [
-        'shops/MonstropolyAirdrop.sol',
-        'shops/MonstropolyMarketplace.sol',
+    configureYulOptimizer: true,
+    solcOptimizerDetails: {
+        yul: true,
+        yulDetails: {
+            stackAllocation: true,
+        },
+    }, skipFiles: [
         'mock/AggregatorMock.sol',
         'mock/UniswapRouter.sol',
         'mock/UniswapFactory.sol',
         'mock/WETH.sol',
-        'gsn/old/MyGSNContract.sol',
-        'gsn/old/MyPaymaster.sol',
-        'gsn/old/MyRelayer.sol',
-        'base/MonstropolyProxy.sol',
-        'base/MonstropolyWhitelist.sol'
+        'mock/UniswapMock.sol',
+        'mock/MyGSNContract.sol',
+        'mock/MyRelayer.sol',
+        'utils/Token.sol',
+        'utils/ERC20Recovery.sol',
+        'utils/ERC721Recovery.sol',
+        'utils/ETHRecovery.sol',
+        'shops/utils/PancakeswapNFTMarketplace.sol',
+        'shops/utils/WBNB.sol',
+        'shops/galler/LaunchpadV1.sol',
+        'shops/galler/Launchpad.sol',
+        'shops/galler/ILaunchpadNFT.sol',
+        'gsn/MonstropolyPaymaster.sol',
+        'gsn/MonstropolyRelayer.sol',
+        'gsn/MonstropolyRelayerFree.sol'
     ]
 };

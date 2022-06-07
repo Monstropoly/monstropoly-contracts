@@ -5,8 +5,8 @@ const { expect } = require('chai')
 const GEN = '010100030101010303'
 const GEN2 = '010100030102010303'
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
-const LOCKER_ROLE = ethers.utils.id('LOCKER_ROLE')
+const MINTER_ROLE = ethers.utils.id('MONSTER_MINTER_ROLE')
+const LOCKER_ROLE = ethers.utils.id('MONSTER_LOCKER_ROLE')
 
 let myData, myFactory, myDeployer, myLending, myMPOLY
 
@@ -27,9 +27,6 @@ describe('LendingGame', function () {
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
         myDeployer = await MonstropolyDeployer.deploy()
 
-        const dataFactory = await ethers.getContractFactory('MonstropolyData')
-        let calldataData = await dataFactory.interface.encodeFunctionData('initialize', []);
-
         const erc721Factory = await ethers.getContractFactory('MonstropolyFactory')
         let calldataerc721 = await erc721Factory.interface.encodeFunctionData('initialize', []);
         const factoryImp = await erc721Factory.deploy()
@@ -42,17 +39,14 @@ describe('LendingGame', function () {
         await myMPOLY.deployed()
         await myMPOLY.mint(borrower.address, ethers.utils.parseEther("10000"))
 
-        await myDeployer.deploy(ethers.utils.id("DATA"), dataFactory.bytecode, calldataData)
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, calldataerc721)
         await myDeployer.deploy(ethers.utils.id("LENDING_GAMING"), lendingFactory.bytecode, calldataLending)
 
-        const [data, factory, lending] = await Promise.all([
-            myDeployer.get(ethers.utils.id("DATA")),
+        const [factory, lending] = await Promise.all([
             myDeployer.get(ethers.utils.id("FACTORY")),
             myDeployer.get(ethers.utils.id("LENDING_GAMING")),
         ])
 
-        myData = await dataFactory.attach(data)
         myFactory = await erc721Factory.attach(factory)
         myLending = await lendingFactory.attach(lending)
 
@@ -60,11 +54,11 @@ describe('LendingGame', function () {
         await myDeployer.grantRole(LOCKER_ROLE, lending)
 
         const owner = lender.address
-        const gen = GEN
+        const tokenId = 0
         const rarity = 1
         const breedUses = 3
         const generation = 1
-        const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+        const response = await myFactory.mint(owner, tokenId, rarity, breedUses, generation)
         await response.wait()
     })
 

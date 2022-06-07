@@ -3,8 +3,10 @@ const ethers = hre.ethers
 const { expect } = require('chai')
 
 const GEN = '010100030101010303'
-const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
-const LOCKER_ROLE = ethers.utils.id('LOCKER_ROLE')
+const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
+const MINTER_ROLE = ethers.utils.id('MONSTER_MINTER_ROLE')
+const LOCKER_ROLE = ethers.utils.id('MONSTER_LOCKER_ROLE')
+const NFT_STAKING_ADMIN_ROLE = ethers.utils.id('NFT_STAKING_ADMIN_ROLE')
 let myData, myFactory, myDeployer, myNFTSTaking
 
 let accounts
@@ -21,33 +23,31 @@ describe('NFTStaking', function () {
     beforeEach(async () => {
 
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
-        myDeployer = await MonstropolyDeployer.deploy()
-
-        const dataFactory = await ethers.getContractFactory('MonstropolyData')
-        let calldataData = await dataFactory.interface.encodeFunctionData('initialize', []);
+        myDeployer = await MonstropolyDeployer.connect(accounts[9]).deploy()
+        await myDeployer.connect(accounts[9]).grantRole(DEFAULT_ADMIN_ROLE, accounts[0].address)
+        await myDeployer.connect(accounts[9]).renounceRole(DEFAULT_ADMIN_ROLE, accounts[9].address)
+        myDeployer = myDeployer.connect(accounts[0])
 
         const erc721Factory = await ethers.getContractFactory('MonstropolyFactory')
         let calldataerc721 = await erc721Factory.interface.encodeFunctionData('initialize', []);
         const factoryImp = await erc721Factory.deploy()
 
-        await myDeployer.deploy(ethers.utils.id("DATA"), dataFactory.bytecode, calldataData)
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, calldataerc721)
 
         const MonstropolyNFTStaking = await ethers.getContractFactory('MonstropolyNFTStaking')
-        await myDeployer.deploy(ethers.utils.id("NFT_STAKING"), MonstropolyNFTStaking.bytecode, calldataData)
+        await myDeployer.deploy(ethers.utils.id("NFT_STAKING"), MonstropolyNFTStaking.bytecode, calldataerc721)
 
-        const [data, factory, nftStaking] = await Promise.all([
-            myDeployer.get(ethers.utils.id("DATA")),
+        const [factory, nftStaking] = await Promise.all([
             myDeployer.get(ethers.utils.id("FACTORY")),
             myDeployer.get(ethers.utils.id("NFT_STAKING")),
         ])
 
-        myData = await dataFactory.attach(data)
         myFactory = await erc721Factory.attach(factory)
         myNFTSTaking = await MonstropolyNFTStaking.attach(nftStaking)
 
         await myDeployer.grantRole(MINTER_ROLE, admin.address)
         await myDeployer.grantRole(LOCKER_ROLE, nftStaking)
+        await myDeployer.grantRole(NFT_STAKING_ADMIN_ROLE, admin.address)
 
         const owner = staker.address
         const tokenId = 0
@@ -240,6 +240,17 @@ describe('NFTStaking', function () {
                 tokenId,
                 staker.address
             )
+        })
+    })
+
+    describe('Others', () => {
+        it('role can setTrustedForwarder', async () => {
+            await expect(
+                myNFTSTaking.connect(staker).setTrustedForwarder(staker.address)
+            ).to.revertedWith(
+                'AccessControlProxyPausable: account ' + String(staker.address).toLowerCase() + ' is missing role ' + NFT_STAKING_ADMIN_ROLE
+            )
+            await myNFTSTaking.connect(admin).setTrustedForwarder(staker.address)
         })
     })
 })

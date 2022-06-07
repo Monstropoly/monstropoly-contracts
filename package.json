@@ -7,11 +7,12 @@
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:js": "standard --verbose | snazzy",
     "lint:js:fix": "standard --verbose --fix | snazzy",
-    "lint:sol": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
+    "lint:sol": "npx solhint --max-warnings 0 --ignore-path .solhintignore 'contracts/**/*.sol'",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "coverage": "hardhat coverage --solcoverjs ./config.solcover.js",
-    "gi": "hardhat gen-interface"
+    "gi": "hardhat gen-interface",
+    "prettier:sol": "prettier --write \"contracts/**/*.sol\""
   },
   "keywords": [],
   "author": "",

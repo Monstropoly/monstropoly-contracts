@@ -5,13 +5,14 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./ILaunchpadNFT.sol";
-import "hardhat/console.sol";
 
 contract Launchpad is Ownable, ReentrancyGuard {
     event AddCampaign(
         address contractAddress,
         CampaignMode mode,
         address payeeAddress,
+        address platformFeeAddress,
+        uint256 platformFeeRate,
         uint256 price,
         uint256 maxSupply,
         uint256 listingTime,
@@ -24,6 +25,8 @@ contract Launchpad is Ownable, ReentrancyGuard {
         address contractAddress,
         CampaignMode mode,
         address payeeAddress,
+        address platformFeeAddress,
+        uint256 platformFeeRate,
         uint256 price,
         uint256 maxSupply,
         uint256 listingTime,
@@ -37,8 +40,10 @@ contract Launchpad is Ownable, ReentrancyGuard {
         CampaignMode mode,
         address userAddress,
         address payeeAddress,
+        address platformFeeAddress,
         uint256 size,
-        uint256 price
+        uint256 fee,
+        uint256 platformFee
     );
 
     enum CampaignMode {
@@ -48,6 +53,8 @@ contract Launchpad is Ownable, ReentrancyGuard {
     struct Campaign {
         address contractAddress;
         address payeeAddress;
+        address platformFeeAddress;
+        uint256 platformFeeRate; // 0 %0 - 10000 100%
         uint256 price; // wei
         uint256 maxSupply;
         uint256 listingTime;
@@ -66,24 +73,24 @@ contract Launchpad is Ownable, ReentrancyGuard {
     mapping(address => mapping(address => uint256))
         private _mintPerAddressWhitelisted;
 
+    /* Inverse basis point. */
+    uint256 public constant INVERSE_BASIS_POINT = 10000;
+
     function mintWhitelisted(
         address contractAddress,
         uint256 batchSize,
         bytes memory signature
     ) external payable nonReentrant {
-        // basic check
-        require(
-            contractAddress != address(0),
-            "contract address can't be empty"
+        //  Check whitelist validator signature
+        Campaign memory campaign = getCampaign(
+            contractAddress,
+            CampaignMode.whitelisted
         );
-        require(batchSize > 0, "batchSize must greater than 0");
-        Campaign memory campaign = _campaignsWhitelisted[contractAddress];
         require(
             campaign.contractAddress != address(0),
             "contract not register"
         );
 
-        //  Check whitelist validator signature
         bytes32 messageHash = keccak256(
             abi.encodePacked(
                 block.chainid,
@@ -99,45 +106,7 @@ contract Launchpad is Ownable, ReentrancyGuard {
         );
 
         // activity check
-        require(batchSize <= campaign.maxBatch, "reach max batch size");
-        require(block.timestamp >= campaign.listingTime, "activity not start");
-        require(block.timestamp < campaign.expirationTime, "activity ended");
-        require(
-            _mintPerAddressWhitelisted[contractAddress][msg.sender] +
-                batchSize <=
-                campaign.maxPerAddress,
-            "reach max per address limit"
-        );
-        require(
-            campaign.minted + batchSize <= campaign.maxSupply,
-            "reach campaign max supply"
-        );
-        uint256 totalPrice = campaign.price * batchSize;
-        require(msg.value >= totalPrice, "value not enough");
-
-        // update record
-        _mintPerAddressWhitelisted[contractAddress][msg.sender] =
-            _mintPerAddressWhitelisted[contractAddress][msg.sender] +
-            batchSize;
-
-        // transfer token and mint
-        payable(campaign.payeeAddress).transfer(totalPrice);
-        ILaunchpadNFT(contractAddress).mintTo(msg.sender, batchSize);
-        _campaignsWhitelisted[contractAddress].minted += batchSize;
-
-        emit Mint(
-            campaign.contractAddress,
-            CampaignMode.whitelisted,
-            msg.sender,
-            campaign.payeeAddress,
-            batchSize,
-            campaign.price
-        );
-        // return
-        uint256 valueLeft = msg.value - totalPrice;
-        if (valueLeft > 0) {
-            payable(_msgSender()).transfer(valueLeft);
-        }
+        mint_(contractAddress, batchSize, CampaignMode.whitelisted);
     }
 
     function mint(address contractAddress, uint256 batchSize)
@@ -145,51 +114,91 @@ contract Launchpad is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        // basic check
+        mint_(contractAddress, batchSize, CampaignMode.normal);
+    }
+
+    function mint_(
+        address contractAddress,
+        uint256 batchSize,
+        CampaignMode mode
+    ) internal {
         require(
             contractAddress != address(0),
             "contract address can't be empty"
         );
         require(batchSize > 0, "batchSize must greater than 0");
-        Campaign memory campaign = _campaignsNormal[contractAddress];
+
+        Campaign memory campaign = getCampaign(contractAddress, mode);
+
         require(
             campaign.contractAddress != address(0),
             "contract not register"
         );
 
-        // activity check
         require(batchSize <= campaign.maxBatch, "reach max batch size");
         require(block.timestamp >= campaign.listingTime, "activity not start");
         require(block.timestamp < campaign.expirationTime, "activity ended");
-        require(
-            _mintPerAddressNormal[contractAddress][msg.sender] + batchSize <=
-                campaign.maxPerAddress,
-            "reach max per address limit"
-        );
+        // normal and white-list mint have individual maxSupply and share MaxLaunchpadSupply
         require(
             campaign.minted + batchSize <= campaign.maxSupply,
             "reach campaign max supply"
         );
+        require(
+            ILaunchpadNFT(campaign.contractAddress).getLaunchpadSupply() +
+                batchSize <=
+                ILaunchpadNFT(campaign.contractAddress).getMaxLaunchpadSupply(),
+            "reach campaign total max supply"
+        );
+
+        if (mode == CampaignMode.normal) {
+            require(
+                _mintPerAddressNormal[campaign.contractAddress][msg.sender] +
+                    batchSize <=
+                    campaign.maxPerAddress,
+                "reach max per address limit"
+            );
+            _mintPerAddressNormal[contractAddress][msg.sender] =
+                _mintPerAddressNormal[contractAddress][msg.sender] +
+                batchSize;
+            _campaignsNormal[contractAddress].minted += batchSize;
+        } else {
+            require(
+                _mintPerAddressWhitelisted[campaign.contractAddress][
+                    msg.sender
+                ] +
+                    batchSize <=
+                    campaign.maxPerAddress,
+                "reach max per address limit"
+            );
+            _mintPerAddressWhitelisted[contractAddress][msg.sender] =
+                _mintPerAddressWhitelisted[contractAddress][msg.sender] +
+                batchSize;
+            _campaignsWhitelisted[contractAddress].minted += batchSize;
+        }
+
         uint256 totalPrice = campaign.price * batchSize;
         require(msg.value >= totalPrice, "value not enough");
 
-        // update record
-        _mintPerAddressNormal[contractAddress][msg.sender] =
-            _mintPerAddressNormal[contractAddress][msg.sender] +
-            batchSize;
-
         // transfer token and mint
-        payable(campaign.payeeAddress).transfer(totalPrice);
+        uint256 platformFee = (totalPrice * campaign.platformFeeRate) /
+            INVERSE_BASIS_POINT;
+        uint256 fee = totalPrice - platformFee;
+        payable(campaign.payeeAddress).transfer(fee);
+        if (platformFee > 0) {
+            payable(campaign.platformFeeAddress).transfer(platformFee);
+        }
+
         ILaunchpadNFT(contractAddress).mintTo(msg.sender, batchSize);
-        _campaignsNormal[contractAddress].minted += batchSize;
 
         emit Mint(
             campaign.contractAddress,
-            CampaignMode.normal,
+            mode,
             msg.sender,
             campaign.payeeAddress,
+            campaign.platformFeeAddress,
             batchSize,
-            campaign.price
+            fee,
+            platformFee
         );
         // return
         uint256 valueLeft = msg.value - totalPrice;
@@ -203,22 +212,16 @@ contract Launchpad is Ownable, ReentrancyGuard {
         CampaignMode mode,
         address userAddress
     ) external view returns (uint256 mintPerAddress) {
-        Campaign memory campaign;
+        require(userAddress != address(0), "user address invalid");
         if (mode == CampaignMode.normal) {
-            campaign = _campaignsNormal[contractAddress];
-            mintPerAddress = _mintPerAddressNormal[contractAddress][msg.sender];
+            mintPerAddress = _mintPerAddressNormal[contractAddress][
+                userAddress
+            ];
         } else {
-            campaign = _campaignsWhitelisted[contractAddress];
             mintPerAddress = _mintPerAddressWhitelisted[contractAddress][
-                msg.sender
+                userAddress
             ];
         }
-
-        require(
-            campaign.contractAddress != address(0),
-            "contract address invalid"
-        );
-        require(userAddress != address(0), "user address invalid");
     }
 
     function getLaunchpadMaxSupply(address contractAddress, CampaignMode mode)
@@ -245,164 +248,200 @@ contract Launchpad is Ownable, ReentrancyGuard {
         }
     }
 
+    function getLaunchpadSupplyTotal(address contractAddress)
+        external
+        view
+        returns (uint256)
+    {
+        return ILaunchpadNFT(contractAddress).getLaunchpadSupply();
+    }
+
     function addCampaign(
-        address contractAddress_,
+        address[] memory addresses,
         CampaignMode mode,
-        address payeeAddress_,
-        uint256 price_,
-        uint256 listingTime_,
-        uint256 expirationTime_,
-        uint256 maxSupply_,
-        uint256 maxBatch_,
-        uint256 maxPerAddress_,
-        address validator_
+        uint256[] memory values
     ) external onlyOwner {
-        require(
-            contractAddress_ != address(0),
-            "contract address can't be empty"
-        );
-        require(
-            expirationTime_ > listingTime_,
-            "expiration time must above listing time"
-        );
-
-        Campaign memory campaign;
-        uint256 maxSupplyRest;
-        if (mode == CampaignMode.normal) {
-            campaign = _campaignsNormal[contractAddress_];
-            maxSupplyRest =
-                ILaunchpadNFT(contractAddress_).getMaxLaunchpadSupply() -
-                _campaignsWhitelisted[contractAddress_].maxSupply;
-        } else {
-            campaign = _campaignsWhitelisted[contractAddress_];
-            maxSupplyRest =
-                ILaunchpadNFT(contractAddress_).getMaxLaunchpadSupply() -
-                _campaignsNormal[contractAddress_].maxSupply;
-            require(validator_ != address(0), "validator can't be empty");
-        }
-
-        require(
-            campaign.contractAddress == address(0),
-            "contract address already exist"
-        );
-
-        require(payeeAddress_ != address(0), "payee address can't be empty");
-        require(maxBatch_ > 0, "max batch invalid");
-        require(maxPerAddress_ > 0, "max per address can't be 0");
-        require(maxSupply_ <= maxSupplyRest, "max supply is exceeded");
-        require(maxSupply_ > 0, "max supply can't be 0");
-
-        emit AddCampaign(
-            contractAddress_,
-            mode,
-            payeeAddress_,
-            price_,
-            maxSupply_,
-            listingTime_,
-            expirationTime_,
-            maxBatch_,
-            maxPerAddress_,
-            validator_
-        );
-        campaign = Campaign(
-            contractAddress_,
-            payeeAddress_,
-            price_,
-            maxSupply_,
-            listingTime_,
-            expirationTime_,
-            maxBatch_,
-            maxPerAddress_,
-            validator_,
+        require(addresses.length == 4, "addresses size wrong");
+        require(values.length == 7, "values size wrong");
+        Campaign memory campaign = Campaign(
+            addresses[0], // contractAddress_,
+            addresses[1], // payeeAddress_,
+            addresses[2], // platformFeeAddress_,
+            values[0], // platformFeeRate_,
+            values[1], // price_,
+            values[2], // maxSupply_,
+            values[3], // listingTime_,
+            values[4], // expirationTime_,
+            values[5], // maxBatch_,
+            values[6], // maxPerAddress_,
+            addresses[3], // validator_,
             0
         );
+        addCampaign_(campaign, mode);
+    }
+
+    function addCampaign_(Campaign memory campaign, CampaignMode mode)
+        internal
+    {
+        campaignCheck(campaign, mode);
+
         if (mode == CampaignMode.normal) {
-            _campaignsNormal[contractAddress_] = campaign;
+            require(
+                _campaignsNormal[campaign.contractAddress].contractAddress ==
+                    address(0),
+                "contract address already exist"
+            );
         } else {
-            _campaignsWhitelisted[contractAddress_] = campaign;
+            require(
+                _campaignsWhitelisted[campaign.contractAddress]
+                    .contractAddress == address(0),
+                "contract address already exist"
+            );
+        }
+
+        emit AddCampaign(
+            campaign.contractAddress,
+            mode,
+            campaign.payeeAddress,
+            campaign.platformFeeAddress,
+            campaign.platformFeeRate,
+            campaign.price,
+            campaign.maxSupply,
+            campaign.listingTime,
+            campaign.expirationTime,
+            campaign.maxBatch,
+            campaign.maxPerAddress,
+            campaign.validator
+        );
+
+        if (mode == CampaignMode.normal) {
+            _campaignsNormal[campaign.contractAddress] = campaign;
+        } else {
+            _campaignsWhitelisted[campaign.contractAddress] = campaign;
         }
     }
 
     function updateCampaign(
-        address contractAddress_,
+        address[] memory addresses,
         CampaignMode mode,
-        address payeeAddress_,
-        uint256 price_,
-        uint256 listingTime_,
-        uint256 expirationTime_,
-        uint256 maxSupply_,
-        uint256 maxBatch_,
-        uint256 maxPerAddress_,
-        address validator_
+        uint256[] memory values
     ) external onlyOwner {
-        Campaign memory campaign;
-        uint256 maxSupplyRest;
-        require(
-            contractAddress_ != address(0),
-            "contract address can't be empty"
-        );
-        require(
-            expirationTime_ > listingTime_,
-            "expiration time must above listing time"
-        );
+        require(addresses.length == 4, "addresses size wrong");
+        require(values.length == 7, "values size wrong");
 
+        address contractAddress = addresses[0];
+        uint256 minted;
         if (mode == CampaignMode.normal) {
-            maxSupplyRest =
-                ILaunchpadNFT(contractAddress_).getMaxLaunchpadSupply() -
-                _campaignsWhitelisted[contractAddress_].maxSupply;
-            campaign = _campaignsNormal[contractAddress_];
+            require(
+                _campaignsNormal[contractAddress].contractAddress != address(0),
+                "normal contract address not exist"
+            );
+            minted = _campaignsNormal[contractAddress].minted;
         } else {
-            campaign = _campaignsWhitelisted[contractAddress_];
-            maxSupplyRest =
-                ILaunchpadNFT(contractAddress_).getMaxLaunchpadSupply() -
-                _campaignsNormal[contractAddress_].maxSupply;
-            require(validator_ != address(0), "validator can't be empty");
+            require(
+                _campaignsWhitelisted[contractAddress].contractAddress !=
+                    address(0),
+                "white-list contract address not exist"
+            );
+            minted = _campaignsWhitelisted[contractAddress].minted;
         }
 
-        require(
-            campaign.contractAddress != address(0),
-            "contract address not exist"
+        Campaign memory campaign = Campaign(
+            addresses[0], // contractAddress_,
+            addresses[1], //payeeAddress_,
+            addresses[2], //platformFeeAddress_,
+            values[0], //platformFeeRate_,
+            values[1], //price_,
+            values[2], //maxSupply_,
+            values[3], //listingTime_,
+            values[4], //expirationTime_,
+            values[5], // maxBatch_,
+            values[6], //maxPerAddress_,
+            addresses[3], //validator_,
+            minted
         );
+        updateCampaign_(campaign, mode);
+    }
 
-        require(payeeAddress_ != address(0), "payee address can't be empty");
-        require(maxBatch_ > 0, "max batch invalid");
-        require(maxPerAddress_ > 0, "max per address can't be 0");
-        require(maxSupply_ <= maxSupplyRest, "max supply is exceeded");
-        require(maxSupply_ > 0, "max supply can't be 0");
+    function updateCampaign_(Campaign memory campaign, CampaignMode mode)
+        internal
+    {
+        campaignCheck(campaign, mode);
+
         emit UpdateCampaign(
-            contractAddress_,
+            campaign.contractAddress,
             mode,
-            payeeAddress_,
-            price_,
-            maxSupply_,
-            listingTime_,
-            expirationTime_,
-            maxBatch_,
-            maxPerAddress_,
-            validator_
-        );
-        campaign = Campaign(
-            contractAddress_,
-            payeeAddress_,
-            price_,
-            maxSupply_,
-            listingTime_,
-            expirationTime_,
-            maxBatch_,
-            maxPerAddress_,
-            validator_,
-            campaign.minted
+            campaign.payeeAddress,
+            campaign.platformFeeAddress,
+            campaign.platformFeeRate,
+            campaign.price,
+            campaign.maxSupply,
+            campaign.listingTime,
+            campaign.expirationTime,
+            campaign.maxBatch,
+            campaign.maxPerAddress,
+            campaign.validator
         );
 
         if (mode == CampaignMode.normal) {
-            _campaignsNormal[contractAddress_] = campaign;
+            _campaignsNormal[campaign.contractAddress] = campaign;
         } else {
-            _campaignsWhitelisted[contractAddress_] = campaign;
+            _campaignsWhitelisted[campaign.contractAddress] = campaign;
         }
     }
 
+    function campaignCheck(Campaign memory campaign, CampaignMode mode)
+        private
+        view
+    {
+        require(
+            campaign.contractAddress != address(0),
+            "contract address can't be empty"
+        );
+        require(
+            campaign.expirationTime > campaign.listingTime,
+            "expiration time must above listing time"
+        );
+        require(
+            campaign.maxSupply > 0 &&
+                campaign.maxSupply <=
+                ILaunchpadNFT(campaign.contractAddress).getMaxLaunchpadSupply(),
+            "campaign max supply invalid"
+        );
+
+        if (mode == CampaignMode.whitelisted) {
+            require(
+                campaign.validator != address(0),
+                "validator can't be empty"
+            );
+        }
+
+        require(
+            campaign.payeeAddress != address(0),
+            "payee address can't be empty"
+        );
+        require(
+            campaign.platformFeeAddress != address(0),
+            "platform fee address can't be empty"
+        );
+        require(
+            campaign.platformFeeRate >= 0 &&
+                campaign.platformFeeRate <= INVERSE_BASIS_POINT,
+            "platform fee rate invalid"
+        );
+        require(
+            campaign.maxBatch > 0 && campaign.maxBatch <= 10,
+            "max batch invalid"
+        );
+        require(
+            campaign.maxPerAddress > 0 &&
+                campaign.maxPerAddress <= campaign.maxSupply,
+            "max per address invalid"
+        );
+    }
+
     function getCampaign(address contractAddress, CampaignMode mode)
-        external
+        public
         view
         returns (Campaign memory)
     {

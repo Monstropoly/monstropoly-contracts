@@ -6,7 +6,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721Enumer
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "../shared/IMonstropolyTickets.sol";
+import "../shared/IMonstropolyDeployer.sol";
 import "../utils/UUPSUpgradeableByRole.sol";
+import "../utils/ETHManager.sol";
 
 contract MonstropolyTickets is
     IMonstropolyTickets,
@@ -17,7 +19,10 @@ contract MonstropolyTickets is
 {
     using CountersUpgradeable for CountersUpgradeable.Counter;
 
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant TICKETS_MINTER_ROLE =
+        keccak256("TICKETS_MINTER_ROLE");
+    bytes32 public constant TICKETS_ADMIN_ROLE =
+        keccak256("TICKETS_ADMIN_ROLE");
     CountersUpgradeable.Counter private _tokenIdCounter;
 
     string private _baseTokenURI;
@@ -31,6 +36,12 @@ contract MonstropolyTickets is
 
     // solhint-disable-next-line
     address public LAUNCHPAD;
+
+    uint256 private _discountAmount;
+    uint256 private _discountAmount2;
+    address public ethManager;
+
+    mapping(address => uint8) private _discountTypeByAccounts;
 
     modifier onlyLaunchpad() {
         require(
@@ -65,6 +76,7 @@ contract MonstropolyTickets is
 
         LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
         LAUNCHPAD = launchpad;
+        ethManager = address(new ETHManager());
     }
 
     /// @inheritdoc IMonstropolyTickets
@@ -78,17 +90,26 @@ contract MonstropolyTickets is
     }
 
     /// @inheritdoc IMonstropolyTickets
-    function isApproved(address to, uint256 tokenId)
+    function isApproved(address ownerOrApproved, uint256 tokenId)
         public
         view
         returns (bool)
     {
-        return _isApprovedOrOwner(to, tokenId);
+        return _isApprovedOrOwner(ownerOrApproved, tokenId);
     }
 
     /// @inheritdoc IMonstropolyTickets
     function exists(uint256 tokenId) public view returns (bool) {
         return _exists(tokenId);
+    }
+
+    function getDiscount(address account)
+        public
+        view
+        returns (uint256 discountType)
+    {
+        if (_discountTypeByAccounts[account] == 1) return _discountAmount;
+        if (_discountTypeByAccounts[account] == 2) return _discountAmount2;
     }
 
     /// @inheritdoc IMonstropolyTickets
@@ -120,15 +141,39 @@ contract MonstropolyTickets is
     function updateLaunchpadConfig(
         uint256 launchpadMaxSupply,
         address launchpad
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(TICKETS_ADMIN_ROLE) {
         LAUNCH_MAX_SUPPLY = launchpadMaxSupply;
         LAUNCHPAD = launchpad;
+        emit UpdateLaunchpadConfig(launchpadMaxSupply, launchpad);
+    }
+
+    /// @inheritdoc IMonstropolyTickets
+    function setDiscountAmounts(uint256 amount1, uint256 amount2)
+        public
+        onlyRole(TICKETS_ADMIN_ROLE)
+    {
+        _discountAmount = amount1;
+        _discountAmount2 = amount2;
+
+        emit SetDiscountAmounts(amount1, amount2);
+    }
+
+    /// @inheritdoc IMonstropolyTickets
+    function setDiscountAccounts(
+        address[] calldata accounts,
+        uint8 discountType
+    ) public onlyRole(TICKETS_ADMIN_ROLE) {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _discountTypeByAccounts[accounts[i]] = discountType;
+        }
+
+        emit SetDiscounts(accounts, discountType);
     }
 
     /// @inheritdoc IMonstropolyTickets
     function setBaseURI(string memory newBaseTokenURI)
         public
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(TICKETS_ADMIN_ROLE)
     {
         _setBaseURI(newBaseTokenURI);
     }
@@ -136,7 +181,7 @@ contract MonstropolyTickets is
     /// @inheritdoc IMonstropolyTickets
     function setContractURI(string memory contractURI_)
         public
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(TICKETS_ADMIN_ROLE)
     {
         _setContractURI(contractURI_);
     }
@@ -149,15 +194,27 @@ contract MonstropolyTickets is
     }
 
     /// @inheritdoc IMonstropolyTickets
-    function safeTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) public {
-        require((from.length == to.length) && (from.length == tokenId.length), "MonstropolyTickets: wrong lengths");
+    function safeTransferFromBatch(
+        address[] calldata from,
+        address[] calldata to,
+        uint256[] calldata tokenId
+    ) public {
+        require(
+            (from.length == to.length) && (from.length == tokenId.length),
+            "MonstropolyTickets: wrong lengths"
+        );
         for (uint256 i = 0; i < from.length; i++) {
             safeTransferFrom(from[i], to[i], tokenId[i]);
         }
     }
 
     /// @inheritdoc IMonstropolyTickets
-    function mint(address to) public onlyRole(MINTER_ROLE) returns (uint256) {
+    function mint(address to)
+        public
+        onlyRole(TICKETS_MINTER_ROLE)
+        whenNotPaused
+        returns (uint256)
+    {
         return _mintIncrementingCounter(to);
     }
 
@@ -172,11 +229,32 @@ contract MonstropolyTickets is
             LAUNCH_SUPPLY + size <= LAUNCH_MAX_SUPPLY,
             "MonstropolyTickets: max launchpad supply reached"
         );
+        LAUNCH_SUPPLY += size;
 
         for (uint256 i = 1; i <= size; i++) {
             _mintIncrementingCounter(to);
-            LAUNCH_SUPPLY++;
         }
+
+        uint256 discountAmount_;
+        if (_discountTypeByAccounts[to] == 1) {
+            discountAmount_ = _discountAmount * size;
+        } else if (_discountTypeByAccounts[to] == 2) {
+            discountAmount_ = _discountAmount2 * size;
+        }
+
+        if (discountAmount_ > 0)
+            ETHManager(payable(ethManager)).safeTransferETH(
+                to,
+                discountAmount_
+            );
+        address treasury = IMonstropolyDeployer(config).get(
+            keccak256("TREASURY_WALLET")
+        );
+        payable(treasury).transfer(address(this).balance);
+        ETHManager(payable(ethManager)).safeTransferETH(
+            treasury,
+            address(ethManager).balance
+        );
     }
 
     function _mintIncrementingCounter(address to) internal returns (uint256) {
@@ -212,10 +290,7 @@ contract MonstropolyTickets is
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(
-            ERC721Upgradeable,
-            ERC721EnumerableUpgradeable
-        )
+        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

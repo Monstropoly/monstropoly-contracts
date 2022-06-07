@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "../utils/AccessControlProxyPausable.sol";
 
+// IMPORTANT: consider using utils/ERC20Recovery.sol, utils/ERC721Recovery.sol and utils/ETHRecovery.sol before using NotUpgradeable
 contract UUPSNotUpgradeable is AccessControlProxyPausable, UUPSUpgradeable {
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
@@ -15,6 +16,7 @@ contract UUPSNotUpgradeable is AccessControlProxyPausable, UUPSUpgradeable {
     //     return StorageSlot.getBooleanSlot(bytes32(uint256(keccak256("eip1967.proxy.upgradeabilityEnded")) - 1)).value;
     // }
 
+    // solhint-disable-next-line
     function _authorizeUpgrade(address newImplementation)
         internal
         override

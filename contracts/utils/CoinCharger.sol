@@ -11,17 +11,13 @@ contract CoinCharger {
         uint256 amount_
     ) internal {
         if (token_ == address(0)) {
-            _chargeAndtransferETH(from_, to_, amount_);
+            _chargeAndtransferETH(to_, amount_);
         } else {
             _transferFromERC20(token_, from_, to_, amount_);
         }
     }
 
-    function _chargeAndtransferETH(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) internal {
+    function _chargeAndtransferETH(address to_, uint256 amount_) internal {
         require(msg.value >= amount_, "CoinCharger: wrong msg.value");
         if (to_ != address(this)) _safeTransferETH(to_, amount_);
     }

@@ -15,9 +15,11 @@ contract MonstropolyNFTStaking is
 {
     string public override versionRecipient = "2.4.0";
     bytes32 public constant FACTORY_ID = keccak256("FACTORY");
+    bytes32 public constant NFT_STAKING_ADMIN_ROLE =
+        keccak256("NFT_STAKING_ADMIN_ROLE");
 
-    mapping (uint256 => uint256) private _lastStakeTime;
-    mapping (uint256 => uint256) private _lastUnstakeTime;
+    mapping(uint256 => uint256) private _lastStakeTime;
+    mapping(uint256 => uint256) private _lastUnstakeTime;
 
     modifier checkStaker(uint256 tokenId, address staker) {
         require(
@@ -45,16 +47,16 @@ contract MonstropolyNFTStaking is
 
     function setTrustedForwarder(address _forwarder)
         public
-    /* TBD: onlyRole(DEPLOYER)*/
+        onlyRole(NFT_STAKING_ADMIN_ROLE)
     {
         _setTrustedForwarder(_forwarder);
     }
 
-    function getLastStake(uint256 tokenId) public view returns(uint256) {
+    function getLastStake(uint256 tokenId) public view returns (uint256) {
         return _lastStakeTime[tokenId];
     }
 
-    function getLastUnstake(uint256 tokenId) public view returns(uint256) {
+    function getLastUnstake(uint256 tokenId) public view returns (uint256) {
         return _lastUnstakeTime[tokenId];
     }
 
@@ -62,6 +64,7 @@ contract MonstropolyNFTStaking is
         external
         checkStaker(tokenId, _msgSender())
         checkLastUnstake(tokenId)
+        whenNotPaused
     {
         _lockToken(tokenId);
         _lastStakeTime[tokenId] = block.timestamp;
@@ -72,6 +75,7 @@ contract MonstropolyNFTStaking is
     function unstake(uint256 tokenId)
         external
         checkStaker(tokenId, _msgSender())
+        whenNotPaused
     {
         _unlockToken(tokenId);
         _lastUnstakeTime[tokenId] = block.timestamp;
@@ -89,7 +93,7 @@ contract MonstropolyNFTStaking is
         return staker == factory.ownerOf(tokenId);
     }
 
-    function _checkLastUnstake(uint256 tokenId) internal view returns(bool) {
+    function _checkLastUnstake(uint256 tokenId) internal view returns (bool) {
         return (_lastUnstakeTime[tokenId] + 1 weeks) < block.timestamp;
     }
 
@@ -97,20 +101,12 @@ contract MonstropolyNFTStaking is
         IMonstropolyFactory factory = IMonstropolyFactory(
             IMonstropolyDeployer(config).get(FACTORY_ID)
         );
-        require(
-            !factory.isLocked(tokenId),
-            "MonstropolyLendingGame: already locked"
-        );
         factory.lockToken(tokenId);
     }
 
     function _unlockToken(uint256 tokenId) internal {
         IMonstropolyFactory factory = IMonstropolyFactory(
             IMonstropolyDeployer(config).get(FACTORY_ID)
-        );
-        require(
-            factory.isLocked(tokenId),
-            "MonstropolyLendingGame: already unlocked"
         );
         factory.unlockToken(tokenId);
     }

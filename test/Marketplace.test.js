@@ -9,7 +9,7 @@ const { expect } = require('chai')
 const GEN = '010100030101010303'
 const GEN2 = '010100030102010303'
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
-const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
+const MINTER_ROLE = ethers.utils.id('MONSTER_MINTER_ROLE')
 const MIN_PRICES = [
     ethers.utils.parseEther('0.01'), //BNB
     ethers.utils.parseEther('1') //MPOLY
@@ -48,14 +48,10 @@ describe('Marketplace', function () {
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
         myDeployer = await MonstropolyDeployer.deploy()
 
-        const dataFactory = await ethers.getContractFactory('MonstropolyData')
-        let calldataData = dataFactory.interface.encodeFunctionData('initialize', []);
-
         const erc721Factory = await ethers.getContractFactory('MonstropolyFactory')
         let calldataerc721 = erc721Factory.interface.encodeFunctionData('initialize', []);
         const factoryImp = await erc721Factory.deploy()
 
-        await myDeployer.deploy(ethers.utils.id("DATA"), dataFactory.bytecode, calldataData)
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("FACTORY"), factoryImp.address, calldataerc721)
 
         const WBNB = await ethers.getContractFactory('WBNB')
@@ -86,24 +82,22 @@ describe('Marketplace', function () {
         await marketplaceImp.deployed()
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("MARKETPLACE"), marketplaceImp.address, calldataMarketplace)
 
-        const [data, factory, marketplace] = await Promise.all([
-            myDeployer.get(ethers.utils.id("DATA")),
+        const [factory, marketplace] = await Promise.all([
             myDeployer.get(ethers.utils.id("FACTORY")),
             myDeployer.get(ethers.utils.id("MARKETPLACE")),
         ])
 
-        myData = dataFactory.attach(data)
         myFactory = erc721Factory.attach(factory)
         myMarketplace = MonstropolyMarketplace.attach(marketplace)
 
         await myDeployer.grantRole(MINTER_ROLE, admin.address)
 
         const owner = seller.address
-        const gen = GEN
+        const tokenId = 0
         const rarity = 1
         const breedUses = 3
         const generation = 1
-        const response = await myFactory.mint(owner, gen, rarity, breedUses, generation)
+        const response = await myFactory.mint(owner, tokenId, rarity, breedUses, generation)
         await response.wait()
 
         const response1 = await myMarketplace.addCollection(

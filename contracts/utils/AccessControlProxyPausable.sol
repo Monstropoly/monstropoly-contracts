@@ -40,6 +40,7 @@ contract AccessControlProxyPausable is
         return manager.hasRole(role, account);
     }
 
+    // solhint-disable-next-line
     function __AccessControlProxyPausable_init(address config_)
         internal
         initializer
@@ -48,6 +49,7 @@ contract AccessControlProxyPausable is
         __AccessControlProxyPausable_init_unchained(config_);
     }
 
+    // solhint-disable-next-line
     function __AccessControlProxyPausable_init_unchained(address config_)
         internal
         initializer

@@ -1,21 +1,21 @@
 const { ethers } = require('hardhat');
-
-const {
-	ether, expectRevert
-} = require('@openzeppelin/test-helpers')
-const { artifacts } = require('hardhat')
 const { expect } = require('chai')
 
 let myDeployer
 let myMagicBoxes
 let myErc20
 let myTickets
+let myTickets2
 let myFactory
 
 let accounts
 
 const BNB_PRICE = "50000000000"
 const MINTER_ROLE = ethers.utils.id('MINTER_ROLE')
+const MONSTER_MINTER_ROLE = ethers.utils.id('MONSTER_MINTER_ROLE')
+const TICKETS_MINTER_ROLE = ethers.utils.id('TICKETS_MINTER_ROLE')
+const MAGIC_BOXES_ADMIN_ROLE = ethers.utils.id('MAGIC_BOXES_ADMIN_ROLE')
+const MAGIC_BOXES_SIGNER_ROLE = ethers.utils.id('MAGIC_BOXES_SIGNER_ROLE')
 const TREASURY_WALLET = ethers.utils.id('TREASURY_WALLET')
 const TICKETS = ethers.utils.id('TICKETS')
 const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -38,7 +38,10 @@ describe('MonstropolyMagicBoxesShop', function () {
 	})
 	beforeEach(async () => {
         const MonstropolyDeployer = await ethers.getContractFactory('MonstropolyDeployer')
-		myDeployer = await MonstropolyDeployer.deploy()
+		myDeployer = await MonstropolyDeployer.connect(accounts[9]).deploy()
+        await myDeployer.connect(accounts[9]).grantRole(DEFAULT_ADMIN_ROLE, accounts[0].address)
+        await myDeployer.connect(accounts[9]).renounceRole(DEFAULT_ADMIN_ROLE, accounts[9].address)
+        myDeployer = myDeployer.connect(accounts[0])
 
 		const MonstropolyMagicBoxesShop = await hre.ethers.getContractFactory('MonstropolyMagicBoxesShop')
 		const MonstropolyFactory = await hre.ethers.getContractFactory('MonstropolyFactory')
@@ -57,8 +60,11 @@ describe('MonstropolyMagicBoxesShop', function () {
         const initializeCalldata = MonstropolyTickets.interface.encodeFunctionData('initialize', [NAME, SYMBOL, BASE_URI, LAUNCHPAD_MAX_SUPPLY, myLaunchpad.address]);
         const implementation = await MonstropolyTickets.deploy()
         await myDeployer.deployProxyWithImplementation(ethers.utils.id("TICKETS_"), implementation.address, initializeCalldata)
+        await myDeployer.deployProxyWithImplementation(ethers.utils.id("TICKETS_2"), implementation.address, initializeCalldata)
         const ticketAddress = await myDeployer.get(ethers.utils.id("TICKETS_"))
+        const ticketAddress2 = await myDeployer.get(ethers.utils.id("TICKETS_2"))
         myTickets = MonstropolyTickets.attach(ticketAddress)
+        myTickets2 = MonstropolyTickets.attach(ticketAddress2)
         await myDeployer.grantRole(MINTER_ROLE, owner.address)
 
 		const [erc20, magicBoxes, factory] = await Promise.all([
@@ -71,55 +77,35 @@ describe('MonstropolyMagicBoxesShop', function () {
 		myMagicBoxes = await MonstropolyMagicBoxesShop.attach(magicBoxes)
 		myFactory = await MonstropolyFactory.attach(factory)
 
-		await myDeployer.grantRole(MINTER_ROLE, myMagicBoxes.address);
+		await myDeployer.grantRole(MONSTER_MINTER_ROLE, myMagicBoxes.address);
+		await myDeployer.grantRole(TICKETS_MINTER_ROLE, owner.address);
+		await myDeployer.grantRole(MAGIC_BOXES_ADMIN_ROLE, owner.address);
+		await myDeployer.grantRole(MAGIC_BOXES_SIGNER_ROLE, backend.address);
         await myDeployer.setId(TREASURY_WALLET, team.address)
 
 		await myMagicBoxes.updateMagicBox(0, 1, ethers.utils.parseEther('1250'), myErc20.address, ethers.utils.parseEther('20'), ethers.utils.parseEther('80'))
 		await myMagicBoxes.updateMagicBox(1, 4, ethers.utils.parseEther('2'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
-		await myMagicBoxes.updateMagicBox(2, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
+		await myMagicBoxes.updateMagicBox(2, 1, ethers.utils.parseEther('0'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
 		await myMagicBoxes.updateMagicBox(3, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
-		await myMagicBoxes.updateMagicBox(4, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
-		await myMagicBoxes.updateMagicBox(5, 1, ethers.utils.parseEther('1'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
+		await myMagicBoxes.updateMagicBox(4, 1, ethers.utils.parseEther('0'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
+		await myMagicBoxes.updateMagicBox(5, 1, ethers.utils.parseEther('0'), ethers.constants.AddressZero, '0', ethers.utils.parseEther('100'))
 		
 		await myMagicBoxes.updateBoxSupply(0, 1000)
 		await myMagicBoxes.updateBoxSupply(1, 1000)
 		await myMagicBoxes.updateBoxSupply(2, 1000)
-		await myMagicBoxes.updateBoxSupply(3, 1000)
+		await myMagicBoxes.updateBoxSupply(3, 0)
 		await myMagicBoxes.updateBoxSupply(4, 1000)
 		await myMagicBoxes.updateBoxSupply(5, 1000)
 
 		await myMagicBoxes.updateTicketToBoxId(myTickets.address, 0, true)
+		await myMagicBoxes.updateTicketToBoxId(myTickets2.address, 1, true)
+		await myMagicBoxes.updateTicketToBoxId(myTickets2.address, 3, true)
 	})
-	describe('MagicBoxes', () => {
+	describe('purchase with token or BNB', () => {
 
-		it('can open a box through GSN paying price', async () => {
+		it('can open a monster box paying price', async () => {
 			//signerWallet
-			myErc20 = myErc20.connect(person)
-			await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-			//purchase
-			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-			myMagicBoxes = myMagicBoxes.connect(person)
-
-			//sign
-			const domain = {
-				name: 'MonstropolyMagicBoxesShop',
-				version: '1',
-				chainId: ethers.provider._network.chainId,
-				verifyingContract: myMagicBoxes.address
-			}
-
-			const types = {
-				Mint: [
-					{ name: 'receiver', type: 'address' },
-					{ name: 'tokenId', type: 'bytes32' },
-					{ name: 'rarity', type: 'bytes32' },
-					{ name: 'breedUses', type: 'uint8' },
-					{ name: 'generation', type: 'uint8' },
-					{ name: 'validUntil', type: 'uint256' }
-				]
-			}
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
 
 			const owner = person.address
             const tokenId = [7]
@@ -129,17 +115,64 @@ describe('MonstropolyMagicBoxesShop', function () {
 			const validUntil = 0
 			const boxId = 0
 
-			const value = {
-				receiver: owner,
-				tokenId: computeHashOfArray(tokenId),
-				rarity: computeHashOfArrayUint8(rarity),
-				breedUses: breedUses,
-				generation: generation,
-				validUntil: validUntil
-			}
-			const signature = await backend._signTypedData(domain, types, value);
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
 
-			const response = await myMagicBoxes.purchase(
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.emit(
+				myMagicBoxes, 'Purchase'
+			).withArgs(
+				boxId,
+				tokenId
+			)
+
+			let owner0 = await myFactory.ownerOf(tokenId[0])
+
+			expect(owner0).to.eq(person.address)
+		})
+
+		it('can open a combo box paying price', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1, 300]
+            const rarity = [1, 2, 0, 1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			const response = await myMagicBoxes.connect(person).purchase(
 				boxId,
 				tokenId,
 				rarity,
@@ -147,44 +180,305 @@ describe('MonstropolyMagicBoxesShop', function () {
 				generation,
 				validUntil,
 				signature,
-				backend.address
+				backend.address,
+				{ value: ethers.utils.parseEther('2') }
 			)
 			let owner0 = await myFactory.ownerOf(tokenId[0])
+			let owner1 = await myFactory.ownerOf(tokenId[1])
+			let owner2 = await myFactory.ownerOf(tokenId[2])
+			let owner3 = await myFactory.ownerOf(tokenId[3])
 
 			expect(owner0).to.eq(person.address)
+			expect(owner1).to.eq(person.address)
+			expect(owner2).to.eq(person.address)
+			expect(owner3).to.eq(person.address)
 		})
 
-		it('can open a box through GSN spending a ticket', async () => {
+		it('reverts when trying to buy a box with price 0', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 2
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong 0 price'
+			)
+		})
+
+		it('reverts if tokenId array length isnt equal to box.amount', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1]
+            const rarity = [1, 2, 0, 1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address,
+					{ value: ethers.utils.parseEther('2') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong tokenId array len'
+			)
+		})
+
+		it('reverts if rarity array length isnt equal to box.amount', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1, 300]
+            const rarity = [1, 2, 0, 1, 8]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address,
+					{ value: ethers.utils.parseEther('2') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong rarity array len'
+			)
+		})
+
+		it('reverts if not enough box supply', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 3
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address,
+					{ value: ethers.utils.parseEther('1') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: no box supply'
+			)
+		})
+
+		it('reverts if signature expired', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 1
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address,
+					{ value: ethers.utils.parseEther('1') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Expired signature'
+			)
+		})
+
+		it('reverts if wrong signature', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				person
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address,
+					{ value: ethers.utils.parseEther('1') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Wrong signature'
+			)
+		})
+
+		it('reverts if wrong signer', async () => {
+			//signerWallet
+			await myErc20.connect(person).approve(myMagicBoxes.address, ethers.constants.MaxUint256)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchase(
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					person.address,
+					{ value: ethers.utils.parseEther('1') }
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Wrong signer'
+			)
+		})
+	})
+	describe('purchasing with tickets', () => {
+
+		it('can open a box spending a ticket', async () => {
 			await myTickets.mint(person.address)
 			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
 
-			//signerWallet
-			myErc20 = myErc20.connect(person)
-
-			//purchase
-			const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-			myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-			myMagicBoxes = myMagicBoxes.connect(person)
-
-			//sign
-			const domain = {
-				name: 'MonstropolyMagicBoxesShop',
-				version: '1',
-				chainId: ethers.provider._network.chainId,
-				verifyingContract: myMagicBoxes.address
-			}
-
-			const types = {
-				Mint: [
-					{ name: 'receiver', type: 'address' },
-					{ name: 'tokenId', type: 'bytes32' },
-					{ name: 'rarity', type: 'bytes32' },
-					{ name: 'breedUses', type: 'uint8' },
-					{ name: 'generation', type: 'uint8' },
-					{ name: 'validUntil', type: 'uint256' }
-				]
-			}
-
 			const owner = person.address
             const tokenId = [7]
             const rarity = [1]
@@ -193,19 +487,152 @@ describe('MonstropolyMagicBoxesShop', function () {
 			const validUntil = 0
 			const boxId = 0
 
-			const value = {
-				receiver: owner,
-				tokenId: computeHashOfArray(tokenId),
-				rarity: computeHashOfArrayUint8(rarity),
-				breedUses: breedUses,
-				generation: generation,
-				validUntil: validUntil
-			}
-			const signature = await backend._signTypedData(domain, types, value);
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
 
-			const response = await myMagicBoxes.purchaseWithTicket(
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.emit(
+				myMagicBoxes, 'PurchaseWithTicket'
+			).withArgs(
 				0,
 				myTickets.address,
+				boxId,
+				tokenId
+			)
+			
+			let owner0 = await myFactory.ownerOf(tokenId[0])
+
+			expect(owner0).to.eq(person.address)
+		})
+
+		it('reverts when wrong ticket to boxId', async () => {
+			await myTickets.mint(person.address)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Invalid ticket'
+			)
+		})
+
+		it('reverts when wrong msg.sender or ticketTokenId', async () => {
+			await myTickets.mint(person.address)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person2.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person2).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong ticketTokenId or sender'
+			)
+		})
+
+		it('can open a combo box spending ticket', async () => {
+			await myTickets2.mint(person.address)
+			await myTickets2.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1, 300]
+            const rarity = [1, 2, 0, 1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await myMagicBoxes.connect(person).purchaseWithTicket(
+				0,
+				myTickets2.address,
 				boxId,
 				tokenId,
 				rarity,
@@ -216,449 +643,286 @@ describe('MonstropolyMagicBoxesShop', function () {
 				backend.address
 			)
 			let owner0 = await myFactory.ownerOf(tokenId[0])
+			let owner1 = await myFactory.ownerOf(tokenId[1])
+			let owner2 = await myFactory.ownerOf(tokenId[2])
+			let owner3 = await myFactory.ownerOf(tokenId[3])
 
 			expect(owner0).to.eq(person.address)
+			expect(owner1).to.eq(person.address)
+			expect(owner2).to.eq(person.address)
+			expect(owner3).to.eq(person.address)
 		})
 
-		// it('can open a box through GSN buying amount > 1', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-		// 	let buyAmount = '3'
-		// 	await myMagicBoxes.purchase(0, buyAmount)
-
-		// 	//create meta-tx
-		// 	const ScienceFactory = await hre.ethers.getContractFactory('MonstropolyGenScience')
-		// 	const setRandomData = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM])
-		// 	const openData = magicBoxesFactory.interface.encodeFunctionData('open', ['0', false, RANDOM])
-		// 	const nonce = await myRelayer.getNonce(person.address)
-
-		// 	//sign
-		// 	const domain = {
-		// 		name: 'MonstropolyRelayer',
-		// 		version: '1',
-		// 		chainId: hre.ethers.provider._network.chainId,
-		// 		verifyingContract: myRelayer.address
-		// 	}
-
-		// 	const types = {
-		// 		Execute: [
-		// 			{ name: 'from', type: 'address' },
-		// 			{ name: 'to', type: 'address' },
-		// 			{ name: 'value', type: 'uint256' },
-		// 			{ name: 'gas', type: 'uint256' },
-		// 			{ name: 'nonce', type: 'uint256' },
-		// 			{ name: 'data', type: 'bytes' },
-		// 			{ name: 'validUntil', type: 'uint256' }
-		// 		]
-		// 	}
-
-		// 	const value = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature = await person._signTypedData(domain, types, value);
-
-		// 	let prevBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	const response = await myRelayer.relay(value, signature)
-		// 	let owner0 = await myFactory.ownerOf(0)
-		// 	let postBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	expect(owner0).to.eq(person.address)
-		// 	expect(prevBalance.toString()).to.eq(buyAmount)
-		// 	expect(postBalance.toString()).to.eq((parseInt(buyAmount) - 1).toString())
-		// })
-
-		// it('can open a box of multiple assets through GSN', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, hre.ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, hre.ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await hre.ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-		// 	let buyAmount = '1'
-		// 	await myMagicBoxes.purchase(2, buyAmount)
-
-		// 	//create meta-tx
-		// 	const ScienceFactory = await hre.ethers.getContractFactory('MonstropolyGenScience')
-		// 	const setRandomData = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM])
-		// 	const openData0 = magicBoxesFactory.interface.encodeFunctionData('open', ['0', false, RANDOM])
-		// 	const openData1 = magicBoxesFactory.interface.encodeFunctionData('open', ['1', false, RANDOM1])
-		// 	let nonce = await myRelayer.getNonce(person.address)
-
-		// 	//sign
-		// 	const domain = {
-		// 		name: 'MonstropolyRelayer',
-		// 		version: '1',
-		// 		chainId: hre.ethers.provider._network.chainId,
-		// 		verifyingContract: myRelayer.address
-		// 	}
-
-		// 	const types = {
-		// 		Execute: [
-		// 			{ name: 'from', type: 'address' },
-		// 			{ name: 'to', type: 'address' },
-		// 			{ name: 'value', type: 'uint256' },
-		// 			{ name: 'gas', type: 'uint256' },
-		// 			{ name: 'nonce', type: 'uint256' },
-		// 			{ name: 'data', type: 'bytes' },
-		// 			{ name: 'validUntil', type: 'uint256' }
-		// 		]
-		// 	}
-
-		// 	const value0 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData0,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature = await person._signTypedData(domain, types, value0);
-
-		// 	let prevBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	const response = await myRelayer.relay(value0, signature)
-		// 	let owner0 = await myFactory.ownerOf(0)
-		// 	let postBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	expect(owner0).to.eq(person.address)
-		// 	expect(prevBalance.toString()).to.eq(buyAmount)
-		// 	expect(postBalance.toString()).to.eq((parseInt(buyAmount) - 1).toString())
-
-		// 	nonce = await myRelayer.getNonce(person.address)
-
-		// 	const value1 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData1,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature1 = await person._signTypedData(domain, types, value1);
-
-		// 	let prevBalance1 = await myMagicBoxes.balances(person.address, false, '1')
-
-		// 	await myRelayer.relay(value1, signature1)
-		// 	let owner1 = await myFactory.ownerOf(1)
-		// 	let postBalance1 = await myMagicBoxes.balances(person.address, false, '1')
-
-		// 	expect(owner1).to.eq(person.address)
-		// 	expect(prevBalance1.toString()).to.eq(buyAmount)
-		// 	expect(postBalance1.toString()).to.eq((parseInt(buyAmount) - 1).toString())
-		// })
-
-		// it('can open a box of multiple assets through GSN buying amount > 1', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, hre.ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, hre.ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await hre.ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-		// 	let buyAmount = '3'
-		// 	await myMagicBoxes.purchase(2, buyAmount)
-
-		// 	//create meta-tx
-		// 	const ScienceFactory = await hre.ethers.getContractFactory('MonstropolyGenScience')
-		// 	const setRandomData = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM])
-		// 	const setRandomData1 = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM1])
-		// 	const openData0 = magicBoxesFactory.interface.encodeFunctionData('open', ['0', false, RANDOM])
-		// 	const openData1 = magicBoxesFactory.interface.encodeFunctionData('open', ['0', false, RANDOM1])
-		// 	let nonce = await myRelayer.getNonce(person.address)
-
-		// 	//sign
-		// 	const domain = {
-		// 		name: 'MonstropolyRelayer',
-		// 		version: '1',
-		// 		chainId: hre.ethers.provider._network.chainId,
-		// 		verifyingContract: myRelayer.address
-		// 	}
-
-		// 	const types = {
-		// 		Execute: [
-		// 			{ name: 'from', type: 'address' },
-		// 			{ name: 'to', type: 'address' },
-		// 			{ name: 'value', type: 'uint256' },
-		// 			{ name: 'gas', type: 'uint256' },
-		// 			{ name: 'nonce', type: 'uint256' },
-		// 			{ name: 'data', type: 'bytes' },
-		// 			{ name: 'validUntil', type: 'uint256' }
-		// 		]
-		// 	}
-
-		// 	const value0 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData0,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature = await person._signTypedData(domain, types, value0);
-
-		// 	let prevBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	const response = await myRelayer.relay(value0, signature)
-		// 	let owner0 = await myFactory.ownerOf(0)
-		// 	let postBalance = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	expect(owner0).to.eq(person.address)
-		// 	expect(prevBalance.toString()).to.eq(buyAmount)
-		// 	expect(postBalance.toString()).to.eq((parseInt(buyAmount) - 1).toString())
-
-		// 	nonce = await myRelayer.getNonce(person.address)
-
-		// 	const value1 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData1,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature1 = await person._signTypedData(domain, types, value1);
-
-		// 	let prevBalance1 = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	await myRelayer.relay(value1, signature1)
-		// 	let owner1 = await myFactory.ownerOf(1)
-		// 	let postBalance1 = await myMagicBoxes.balances(person.address, false, '0')
-
-		// 	expect(owner1).to.eq(person.address)
-		// 	expect(prevBalance1.toString()).to.eq((parseInt(buyAmount) - 1).toString())
-		// 	expect(postBalance1.toString()).to.eq((parseInt(buyAmount) - 2).toString())
-		// })
-
-		// it('can open a boxVIP of multiple assets through GSN buying amount > 1', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-		// 	let buyAmount = '2'
-        //     let value = ethers.utils.parseEther('3.26')
-		// 	await myMagicBoxes.purchase(3, buyAmount, { value: value })
-
-		// 	//create meta-tx
-		// 	const ScienceFactory = await ethers.getContractFactory('MonstropolyGenScience')
-		// 	const setRandomData = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM])
-		// 	const setRandomData1 = ScienceFactory.interface.encodeFunctionData('setRandom', [RANDOM1])
-		// 	const openData0 = magicBoxesFactory.interface.encodeFunctionData('open', ['0', true, RANDOM])
-		// 	const openData1 = magicBoxesFactory.interface.encodeFunctionData('open', ['1', true, RANDOM1])
-		// 	let nonce = await myRelayer.getNonce(person.address)
-
-		// 	//sign
-		// 	const domain = {
-		// 		name: 'MonstropolyRelayer',
-		// 		version: '1',
-		// 		chainId: hre.ethers.provider._network.chainId,
-		// 		verifyingContract: myRelayer.address
-		// 	}
-
-		// 	const types = {
-		// 		Execute: [
-		// 			{ name: 'from', type: 'address' },
-		// 			{ name: 'to', type: 'address' },
-		// 			{ name: 'value', type: 'uint256' },
-		// 			{ name: 'gas', type: 'uint256' },
-		// 			{ name: 'nonce', type: 'uint256' },
-		// 			{ name: 'data', type: 'bytes' },
-		// 			{ name: 'validUntil', type: 'uint256' }
-		// 		]
-		// 	}
-
-		// 	const value0 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData0,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature = await person._signTypedData(domain, types, value0);
-
-		// 	let prevBalance = await myMagicBoxes.balances(person.address, true, '0')
-
-		// 	const response = await myRelayer.relay(value0, signature)
-		// 	let owner0 = await myFactory.ownerOf(0)
-		// 	let postBalance = await myMagicBoxes.balances(person.address, true, '0')
-
-		// 	expect(owner0).to.eq(person.address)
-		// 	expect(prevBalance.toString()).to.eq((parseInt(buyAmount)*3).toString())
-		// 	expect(postBalance.toString()).to.eq((parseInt(buyAmount)*3 - 1).toString())
-
-		// 	nonce = await myRelayer.getNonce(person.address)
-
-		// 	const value1 = {
-		// 		from: person.address,
-		// 		to: myMagicBoxes.address,
-		// 		value: 0,
-		// 		gas: 3000000,
-		// 		nonce: nonce.toString(),
-		// 		data: openData1,
-		// 		validUntil: 0
-		// 	}
-
-		// 	const signature1 = await person._signTypedData(domain, types, value1);
-
-		// 	let prevBalance1 = await myMagicBoxes.balances(person.address, true, '1')
-
-		// 	await myRelayer.relay(value1, signature1)
-		// 	let owner1 = await myFactory.ownerOf(1)
-		// 	let postBalance1 = await myMagicBoxes.balances(person.address, true, '1')
-
-		// 	expect(owner1).to.eq(person.address)
-		// 	expect(prevBalance1.toString()).to.eq((parseInt(buyAmount)*3).toString())
-		// 	expect(postBalance1.toString()).to.eq((parseInt(buyAmount)*3 - 1).toString())
-		// })
-
-        // it('can updateMagicBox', async () => {
-        //     let boxId = 0
-        //     let newAssets = [1,0]
-        //     let newPrice = ether('777')
-        //     let newBurnPercentage = ether('40')
-        //     let newTreasuryPercentage = ether('60')
-        //     let newTokenAddress = person.address
-        //     let newVip = true
-        //     await myMagicBoxes.updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip)
-        //     let box = await myMagicBoxes.box(boxId)
-        //     expect(box.price.toString()).to.equal(newPrice.toString())
-        //     expect(box.burnPercentage.toString()).to.equal(newBurnPercentage.toString())
-        //     expect(box.treasuryPercentage.toString()).to.equal(newTreasuryPercentage.toString())
-        //     expect(box.token).to.equal(newTokenAddress)
-        //     expect(box.vip).to.equal(newVip)
-		// })
-
-        // it('only default admin role can updateMagicBox', async () => {
-        //     let boxId = 0
-        //     let newAssets = [1,0]
-        //     let newPrice = ethers.utils.parseEther('777')
-        //     let newBurnPercentage = ethers.utils.parseEther('40')
-        //     let newTreasuryPercentage = ethers.utils.parseEther('60')
-        //     let newTokenAddress = person.address
-        //     let newVip = true
-        //     const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-        //     await expectRevert(
-        //         (await myMagicBoxes.connect(person)).updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip),
-        //         'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + DEFAULT_ADMIN_ROLE
-        //     )
-		// })
-
-        // it('updateMagicBox reverts if wrong percentages', async () => {
-        //     let boxId = 0
-        //     let newAssets = [1,0]
-        //     let newPrice = ether('777')
-        //     let newBurnPercentage = ether('70')
-        //     let newTreasuryPercentage = ether('60')
-        //     let newTokenAddress = person.address
-        //     let newVip = true
-        //     await expectRevert(
-        //         myMagicBoxes.updateMagicBox(boxId, newAssets, newPrice, newTokenAddress, newBurnPercentage, newTreasuryPercentage, newVip),
-        //         'MonstropolyMagicBoxesShop: wrong percentages'
-        //     )
-		// })
-
-        // it('reverts if trying to buy an inexistent box', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-        //     await expectRevert(
-        //         myMagicBoxes.purchase(4, 1),
-        //         'MonstropolyMagicBoxesShop: wrong 0 price'
-        //     )
-		// })
-
-        // it('reverts if trying to buy a box with price 0', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-		// 	//purchase
-		//     await myMagicBoxes.updateMagicBox(0, [0], ether('0'), myErc20.address, ether('20'), ether('80'), false)
-        //     await expectRevert(
-        //         myMagicBoxes.purchase(0, 1),
-        //         'MonstropolyMagicBoxesShop: wrong 0 price'
-        //     )
-		// })
-
-        // it('reverts if trying to buy a box with amount 0', async () => {
-		// 	//signerWallet
-		// 	myErc20 = myErc20.connect(person)
-		// 	const paymaster = await myRelayer.paymaster()
-		// 	await myMagicBoxes.setTrustedForwarder(myRelayer.address)
-		// 	await myErc20.approve(paymaster, ethers.constants.MaxUint256)
-		// 	await myErc20.approve(myMagicBoxes.address, ethers.constants.MaxUint256)
-
-		// 	//purchase
-		// 	const magicBoxesFactory = await ethers.getContractFactory('MonstropolyMagicBoxesShop')
-		// 	myMagicBoxes = magicBoxesFactory.attach(myMagicBoxes.address)
-		// 	myMagicBoxes = myMagicBoxes.connect(person)
-        //     await expectRevert(
-        //         myMagicBoxes.purchase(0, 0),
-        //         'MonstropolyMagicBoxesShop: wrong 0 price'
-        //     )
-		// })
-
-        // it('reverts if trying to open without balance', async () => {
-        //     await expectRevert(
-        //         myMagicBoxes.open(0, false, RANDOM),
-        //         'MonstropolyMagicBoxesShop: amount exceeds balance'
-        //     )
-		// })
+		it('reverts if tokenId array length isnt equal to box.amount', async () => {
+			await myTickets2.mint(person.address)
+			await myTickets2.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1]
+            const rarity = [1, 2, 0, 1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets2.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong tokenId array len'
+			)
+		})
+
+		it('reverts if rarity array length isnt equal to box.amount', async () => {
+			await myTickets2.mint(person.address)
+			await myTickets2.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7, 12, 1, 300]
+            const rarity = [1, 2, 0, 1, 8]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 1
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets2.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: wrong rarity array len'
+			)
+		})
+
+		it('reverts if not enough box supply', async () => {
+			await myTickets2.mint(person.address)
+			await myTickets2.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 3
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets2.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: no box supply'
+			)
+		})
+
+		it('reverts if signature expired', async () => {
+			await myTickets.mint(person.address)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 1
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Expired signature'
+			)
+		})
+
+		it('reverts if wrong signature', async () => {
+			await myTickets.mint(person.address)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				person
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					backend.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Wrong signature'
+			)
+		})
+
+		it('reverts if wrong signer', async () => {
+			await myTickets.mint(person.address)
+			await myTickets.connect(person).setApprovalForAll(myMagicBoxes.address, true)
+
+			const owner = person.address
+            const tokenId = [7]
+            const rarity = [1]
+            const breedUses = 3
+            const generation = 1
+			const validUntil = 0
+			const boxId = 0
+
+			const signature = await offchainSignature(
+				myMagicBoxes.address,
+				owner,
+				tokenId,
+				rarity,
+				breedUses,
+				generation,
+				validUntil,
+				backend
+			)
+
+			await expect(
+				myMagicBoxes.connect(person).purchaseWithTicket(
+					0,
+					myTickets.address,
+					boxId,
+					tokenId,
+					rarity,
+					breedUses,
+					generation,
+					validUntil,
+					signature,
+					person.address
+				)
+			).to.revertedWith(
+				'MonstropolyMagicBoxesShop: Wrong signer'
+			)
+		})
+	})
+
+	describe('others', () => {
+
+		it('role can setTrustedForwarder', async () => {
+            await expect(
+                myMagicBoxes.connect(person).setTrustedForwarder(person.address)
+            ).to.revertedWith(
+                'AccessControlProxyPausable: account ' + String(person.address).toLowerCase() + ' is missing role ' + MAGIC_BOXES_ADMIN_ROLE
+            )
+            await myMagicBoxes.connect(owner).setTrustedForwarder(person.address)
+        })
+
+		it('reverts when wrong percentages in burn and treasury config', async () => {
+            await expect(
+				myMagicBoxes.updateMagicBox(6, 1, ethers.utils.parseEther('0'), ethers.constants.AddressZero, ethers.utils.parseEther('70'), ethers.utils.parseEther('50'))
+            ).to.revertedWith(
+                'MonstropolyMagicBoxesShop: wrong percentages'
+            )
+            await expect(
+				myMagicBoxes.updateMagicBox(6, 1, ethers.utils.parseEther('0'), ethers.constants.AddressZero, ethers.utils.parseEther('70'), ethers.utils.parseEther('10'))
+            ).to.revertedWith(
+                'MonstropolyMagicBoxesShop: wrong percentages'
+            )
+        })
 	})
 })
 
@@ -680,4 +944,44 @@ function computeHashOfArrayUint8(array) {
 		concatenatedHashes = ethers.utils.defaultAbiCoder.encode(["bytes", "bytes32"], [concatenatedHashes, itemHash])
 	}
 	return ethers.utils.keccak256(concatenatedHashes)
+}
+
+async function offchainSignature(
+	verifyingContract,
+	owner,
+	tokenId,
+	rarity,
+	breedUses,
+	generation,
+	validUntil,
+	signer
+) {
+	//sign
+	const domain = {
+		name: 'MonstropolyMagicBoxesShop',
+		version: '1',
+		chainId: ethers.provider._network.chainId,
+		verifyingContract: verifyingContract
+	}
+
+	const types = {
+		Mint: [
+			{ name: 'receiver', type: 'address' },
+			{ name: 'tokenId', type: 'bytes32' },
+			{ name: 'rarity', type: 'bytes32' },
+			{ name: 'breedUses', type: 'uint8' },
+			{ name: 'generation', type: 'uint8' },
+			{ name: 'validUntil', type: 'uint256' }
+		]
+	}
+
+	const value = {
+		receiver: owner,
+		tokenId: computeHashOfArray(tokenId),
+		rarity: computeHashOfArrayUint8(rarity),
+		breedUses: breedUses,
+		generation: generation,
+		validUntil: validUntil
+	}
+	return await signer._signTypedData(domain, types, value);
 }

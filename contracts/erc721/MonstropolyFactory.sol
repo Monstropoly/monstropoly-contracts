@@ -20,11 +20,18 @@ contract MonstropolyFactory is
     ERC721BurnableUpgradeable,
     UUPSUpgradeableByRole
 {
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant LOCKER_ROLE = keccak256("LOCKER_ROLE");
-    bytes32 public constant BREED_USES_SPENDER_ROLE = keccak256("BREED_USES_SPENDER_ROLE");
-    bytes32 public constant GAMER_UPDATER_ROLE = keccak256("GAMER_UPDATER_ROLE");
-    bytes32 public constant BREEDER_UPDATER_ROLE = keccak256("BREEDER_UPDATER_ROLE");
+    bytes32 public constant MONSTER_ADMIN_ROLE =
+        keccak256("MONSTER_ADMIN_ROLE");
+    bytes32 public constant MONSTER_MINTER_ROLE =
+        keccak256("MONSTER_MINTER_ROLE");
+    bytes32 public constant MONSTER_LOCKER_ROLE =
+        keccak256("MONSTER_LOCKER_ROLE");
+    bytes32 public constant MONSTER_BREED_USES_ROLE =
+        keccak256("MONSTER_BREED_USES_ROLE");
+    bytes32 public constant MONSTER_GAMER_UPDATER_ROLE =
+        keccak256("MONSTER_GAMER_UPDATER_ROLE");
+    bytes32 public constant MONSTER_BREEDER_UPDATER_ROLE =
+        keccak256("MONSTER_BREEDER_UPDATER_ROLE");
 
     string private _baseTokenURI;
     string private _contractUri;
@@ -41,9 +48,8 @@ contract MonstropolyFactory is
         __ERC721_init("Monstropoly Monsters", "MPM");
         __ERC721Enumerable_init();
         __ERC721URIStorage_init();
-        __Pausable_init();
-        __AccessControlProxyPausable_init(msg.sender);
         __ERC721Burnable_init();
+        __AccessControlProxyPausable_init(msg.sender);
         _setBaseURI("https://monstropoly.io/nfts/");
         _setContractURI("https://monstropoly.io/contractUri/");
     }
@@ -64,12 +70,12 @@ contract MonstropolyFactory is
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function isApproved(address to, uint256 tokenId)
+    function isApproved(address ownerOrApproved, uint256 tokenId)
         public
         view
         returns (bool)
     {
-        return _isApprovedOrOwner(to, tokenId);
+        return _isApprovedOrOwner(ownerOrApproved, tokenId);
     }
 
     /// @inheritdoc IMonstropolyFactory
@@ -114,83 +120,98 @@ contract MonstropolyFactory is
     /// @inheritdoc IMonstropolyFactory
     function setBaseURI(string memory newBaseTokenURI)
         public
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(MONSTER_ADMIN_ROLE)
     {
         _setBaseURI(newBaseTokenURI);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setTokenURI(uint256 tokenId, string memory _tokenURI)
+    function setTokenURI(uint256 tokenId, string memory tokenURI_)
         public
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(MONSTER_ADMIN_ROLE)
     {
-        _setTokenURI(tokenId, _tokenURI);
+        _setTokenURI(tokenId, tokenURI_);
     }
 
     /// @inheritdoc IMonstropolyFactory
     function setContractURI(string memory contractURI_)
         public
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        onlyRole(MONSTER_ADMIN_ROLE)
     {
         _setContractURI(contractURI_);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function lockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
+    function lockToken(uint256 tokenId) public onlyRole(MONSTER_LOCKER_ROLE) {
+        require(
+            !_tokensById[tokenId].locked,
+            "MonstropolyFactory: already locked"
+        );
         _tokensById[tokenId].locked = true;
         emit LockToken(tokenId);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function unlockToken(uint256 tokenId) public onlyRole(LOCKER_ROLE) {
+    function unlockToken(uint256 tokenId) public onlyRole(MONSTER_LOCKER_ROLE) {
+        require(
+            _tokensById[tokenId].locked,
+            "MonstropolyFactory: already unlocked"
+        );
         _tokensById[tokenId].locked = false;
         emit UnlockToken(tokenId);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setBreedUses(uint256 tokenId, uint8 usesLeft) public onlyRole(BREED_USES_SPENDER_ROLE) {
+    function setBreedUses(uint256 tokenId, uint8 usesLeft)
+        public
+        onlyRole(MONSTER_BREED_USES_ROLE)
+    {
         _tokensById[tokenId].breedUses = usesLeft;
         emit SetBreedUses(tokenId, usesLeft);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setGamer(uint256 tokenId, address newGamer) public onlyRole(GAMER_UPDATER_ROLE) {
+    function setGamer(uint256 tokenId, address newGamer)
+        public
+        onlyRole(MONSTER_GAMER_UPDATER_ROLE)
+    {
         _tokensById[tokenId].gamer = newGamer;
         emit SetGamer(tokenId, newGamer);
     }
 
     /// @inheritdoc IMonstropolyFactory
-    function setBreeder(uint256 tokenId, address newBreeder) public onlyRole(BREEDER_UPDATER_ROLE) {
+    function setBreeder(uint256 tokenId, address newBreeder)
+        public
+        onlyRole(MONSTER_BREEDER_UPDATER_ROLE)
+    {
         _tokensById[tokenId].breeder = newBreeder;
         emit SetBreeder(tokenId, newBreeder);
     }
 
     /// @inheritdoc IMonstropolyFactory
     function mint(
-        address to_,
-        uint256 tokenId_,
-        uint8 rarity_,
-        uint8 breedUses_,
-        uint8 generation_
-    ) public onlyRole(MINTER_ROLE) returns (uint256) {
-        require(!_usedTokenIds[tokenId_], "MonstropolyFactory: tokenId used");
-        _usedTokenIds[tokenId_] = true;
+        address to,
+        uint256 tokenId,
+        uint8 rarity,
+        uint8 breedUses,
+        uint8 generation
+    ) public onlyRole(MONSTER_MINTER_ROLE) whenNotPaused {
+        require(!_usedTokenIds[tokenId], "MonstropolyFactory: tokenId used");
+        _usedTokenIds[tokenId] = true;
 
         Token memory token_ = Token(
-            rarity_,
-            breedUses_,
-            generation_,
+            rarity,
+            breedUses,
+            generation,
             false,
             block.timestamp,
-            to_,
-            to_
+            to,
+            to
         );
-        _tokensById[tokenId_] = token_;
-        _safeMint(to_, tokenId_);
+        _tokensById[tokenId] = token_;
+        _safeMint(to, tokenId);
 
-        emit Mint(to_, tokenId_, rarity_, breedUses_, generation_);
-
-        return tokenId_;
+        emit Mint(to, tokenId, rarity, breedUses, generation);
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
@@ -241,7 +262,10 @@ contract MonstropolyFactory is
         override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
         whenNotPaused
     {
-        require(!_tokensById[tokenId].locked, "MonstropolyFactory: locked token");
+        require(
+            !_tokensById[tokenId].locked,
+            "MonstropolyFactory: locked token"
+        );
         super._beforeTokenTransfer(from, to, tokenId);
     }
 }

@@ -31,8 +31,8 @@ describe('UUPS', function () {
         const response = await myDeployer.deploy(ethers.utils.id('UUPSMOCK'), UUPSUpgradeableMock.bytecode, emptyInitializableData)
         const receipt = await response.wait()
         const proxy = await myDeployer.get(ethers.utils.id('UUPSMOCK'))
-        const proxyAddress = receipt.events[2].args.proxy
-        const impAddress = receipt.events[2].args.implementation
+        const proxyAddress = receipt.events[3].args.proxy
+        const impAddress = receipt.events[3].args.implementation
         myProxy = await ERC1967Proxy.attach(proxyAddress)
         myUpgradeableProxy = await UUPSUpgradeableMock.attach(proxyAddress)
         myUpgradeableImp = await UUPSUpgradeableMock.attach(impAddress)
